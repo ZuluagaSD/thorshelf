@@ -12,13 +12,15 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Set;
 
 /** Tracks Android-managed downloads without keeping their temporary download URLs. */
 public final class DownloadStore {
@@ -46,36 +48,37 @@ public final class DownloadStore {
         if (url == null || !DownloadPolicy.isAllowedDownload(url)) {
             throw new IllegalArgumentException("This download address is not an approved HTTPS source.");
         }
-        String name = uniqueFilename(DownloadPolicy.safeFilename(fileName));
         String page = catalogPage(sourcePage);
-        final DownloadManager.Request request;
-        try {
-            request = new DownloadManager.Request(Uri.parse(url))
-                    .setTitle(name)
-                    .setDescription("ThorShelf · hShop")
-                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "ThorShelf/" + name)
-                    .setAllowedOverRoaming(false);
-            if (wifiOnly) {
-                request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI);
-            }
-            addHeader(request, "User-Agent", userAgent);
-            addHeader(request, "Cookie", cookie);
-            if (sourcePage != null && !sourcePage.trim().isEmpty()) {
-                addHeader(request, "Referer", page);
-            }
-        } catch (RuntimeException ignored) {
-            throw new IllegalArgumentException("Could not prepare this download. Reopen its hShop page and try again.");
-        }
-
         synchronized (LOCK) {
+            // Reserve the name while holding the same lock as enqueue and persistence. Pending
+            // downloads may not have created a file yet, so filesystem checks alone are not enough.
+            List<TrackedDownload> records = readRecords();
+            String name = uniqueFilename(fileName, occupiedNames(records));
+            final DownloadManager.Request request;
+            try {
+                request = new DownloadManager.Request(Uri.parse(url))
+                        .setTitle(name)
+                        .setDescription("ThorShelf · hShop")
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "ThorShelf/" + name)
+                        .setAllowedOverRoaming(false);
+                if (wifiOnly) {
+                    request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI);
+                }
+                addHeader(request, "User-Agent", userAgent);
+                addHeader(request, "Cookie", cookie);
+                if (sourcePage != null && !sourcePage.trim().isEmpty()) {
+                    addHeader(request, "Referer", page);
+                }
+            } catch (RuntimeException ignored) {
+                throw new IllegalArgumentException("Could not prepare this download. Reopen its hShop page and try again.");
+            }
             final long id;
             try {
                 id = manager.enqueue(request);
             } catch (RuntimeException ignored) {
                 throw new IllegalStateException("Android could not start the download. Check available storage and the download service.");
             }
-            List<TrackedDownload> records = readRecords();
             records.add(new TrackedDownload(id, name, page));
             if (!writeRecords(records)) {
                 try {
@@ -248,22 +251,54 @@ public final class DownloadStore {
         }
     }
 
-    private static String uniqueFilename(String safeName) {
-        String suffix = "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        int dot = safeName.lastIndexOf('.');
-        if (dot > 0 && safeName.length() - dot > 10) {
-            dot = -1;
+    private List<String> occupiedNames(List<TrackedDownload> records) {
+        List<String> names = new ArrayList<>();
+        for (TrackedDownload record : records) names.add(record.name);
+        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "ThorShelf");
+        try {
+            String[] existing = directory.list();
+            if (existing != null) {
+                for (String name : existing) names.add(name);
+            }
+        } catch (SecurityException ignored) {
+            // Scoped storage can hide files owned by other apps. DownloadManager still refuses
+            // to overwrite them, including a file created after this best-effort name check.
         }
-        String extension = dot > 0 ? safeName.substring(dot) : "";
-        String stem = dot > 0 ? safeName.substring(0, dot) : safeName;
-        while (!stem.isEmpty() && (stem.length() + suffix.length() + extension.length() > 100
-                || (stem + suffix + extension).getBytes(StandardCharsets.UTF_8).length > 180)) {
-            stem = stem.substring(0, stem.offsetByCodePoints(stem.length(), -1));
+        // Keep queued names reserved even if our saved list was lost. Android limits this query
+        // to this app's downloads; no storage permission or source URL is needed or persisted.
+        try (Cursor cursor = manager.query(new DownloadManager.Query())) {
+            if (cursor != null) {
+                int localColumn = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
+                while (localColumn >= 0 && cursor.moveToNext()) {
+                    try {
+                        String value = cursor.getString(localColumn);
+                        if (value == null) continue;
+                        Uri uri = Uri.parse(value);
+                        if (!"file".equals(uri.getScheme()) || uri.getPath() == null) continue;
+                        File file = new File(uri.getPath());
+                        if (directory.equals(file.getParentFile())) names.add(file.getName());
+                    } catch (RuntimeException ignored) {
+                        // One inaccessible provider row should not hide other reservations.
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Saved records and visible files still protect the destinations we can identify.
         }
-        if (dot > 0) {
-            return stem + suffix + extension;
+        return names;
+    }
+
+    static String uniqueFilename(String proposed, Iterable<String> existingNames) {
+        Set<String> occupied = new HashSet<>();
+        for (String name : existingNames) {
+            if (name != null) occupied.add(name.toLowerCase(Locale.ROOT));
         }
-        return stem + suffix;
+        String base = GameFilename.clean(proposed);
+        String candidate = base;
+        for (int number = 2; occupied.contains(candidate.toLowerCase(Locale.ROOT)); number++) {
+            candidate = GameFilename.numbered(base, number);
+        }
+        return candidate;
     }
 
     private static void addHeader(DownloadManager.Request request, String name, String value) {
@@ -352,6 +387,8 @@ public final class DownloadStore {
         public final long downloaded;
         public final long total;
         public final String name;
+        /** Readable label for older downloads; name still identifies the original saved file. */
+        public final String displayName;
         public final String sourcePage;
         public final String statusLabel;
         public final int status;
@@ -361,6 +398,7 @@ public final class DownloadStore {
                       String statusLabel) {
             this.id = record.id;
             this.name = record.name;
+            this.displayName = GameFilename.clean(record.name);
             this.sourcePage = record.sourcePage;
             this.downloaded = downloaded;
             this.total = total;

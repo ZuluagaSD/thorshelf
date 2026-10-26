@@ -1,0 +1,31 @@
+{
+  "generator": "Built-in image_gen",
+  "purpose": "Bundled decorative editorial illustrations for ThorShelf's shelf and download thumbnails; not official covers or gameplay screenshots.",
+  "assets": [
+    {
+      "name": "shelf_hero",
+      "destination": "app/src/main/res/drawable-nodpi/shelf_hero.png",
+      "prompt": "Create a beautiful original game-inspired illustration as a wide 2.5:1 banner for a cozy handheld game library. Warm sunset tropical island panorama and a magnificent ruby red armored fantasy dragon on the right third, turquoise sea and lush green islands below. Left half fades to pale ivory peach with minimal soft clouds, intentionally empty for UI text. Modern polished colorful painted game art, playful and adventurous. No words, no logos, no interface or border. The dragon is a friendly fantastical original creature."
+    },
+    {
+      "name": "shelf_animal_crossing",
+      "destination": "app/src/main/res/drawable-nodpi/shelf_animal_crossing.png",
+      "prompt": "Create a square original illustration for a cozy village game tile in a handheld library. A cheerful friendly yellow dog village secretary wearing a green checked vest smiles in a beautiful sunny garden. Tiny quaint pastel houses, blooming pink flowers, grassy hills, fruit trees, and soft blue sky. Warm polished colorful toy-like illustration with expressive friendly eyes. Fill the frame, no words, no letters, no logos, no interface, no border."
+    },
+    {
+      "name": "shelf_mario_kart",
+      "destination": "app/src/main/res/drawable-nodpi/shelf_mario_kart.png",
+      "prompt": "Square polished colorful illustration of a bright red racing go-kart on a sunny whimsical kart track. No driver or people: just a beautiful toy-like red kart with black tires and chrome details in the foreground, curved red-and-white race curb, lush green hills and a bright blue sky with puffy white clouds behind. Joyful premium family racing-game aesthetic, saturated red blue and green, expressive dynamic camera angle. No logos, words, numbers, interface, border, or watermarks. This will be a small decorative racing category image in a game library."
+    },
+    {
+      "name": "shelf_layton",
+      "destination": "app/src/main/res/drawable-nodpi/shelf_layton.png",
+      "prompt": "Use case: illustration-story. Asset type: bundled game-inspired illustrative artwork in the ThorShelf Android UI. User approved a Nintendo 3DS eShop-inspired modern interface. Make a beautiful polished colorful game illustration, cheerful, premium clean 3D/painted game art with clear shapes and warm soft light. Fill the whole frame, no UI, no writing, no logos, no typography, no text, no border or watermark. This is sample editorial artwork, not a screenshot or box cover. Square image. Professor Layton and the Miracle Mask inspired: recognizable gentleman Professor Layton in brown top hat and orange shirt on the left foreground, mysterious golden theatrical mask beside him on the right, golden lights and European fantasy city at purple sunset behind. Beautiful charming hand-painted animation style, warm and mysterious, readable at thumbnail size."
+    },
+    {
+      "name": "shelf_zelda",
+      "destination": "app/src/main/res/drawable-nodpi/shelf_zelda.png",
+      "prompt": "Use case: illustration-story. Asset type: bundled game-inspired illustrative artwork in the ThorShelf Android UI. User approved a Nintendo 3DS eShop-inspired modern interface. Make a beautiful polished colorful game illustration, cheerful, premium clean 3D/painted game art with clear shapes and warm soft light. Fill the whole frame, no UI, no writing, no logos, no typography, no text, no border or watermark. This is sample editorial artwork, not a screenshot or box cover. Square image. The Legend of Zelda A Link Between Worlds inspired: recognizable young Link in green tunic and green hat with a blue shield, seen at three-quarter angle looking toward a beautiful distant fantasy castle beyond a sparkling blue river. Emerald trees, golden light, charming magical adventure, painterly premium Nintendo-like game art, no text."
+    }
+  ]
+}

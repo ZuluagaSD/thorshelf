@@ -109,13 +109,29 @@ public class PreparationServiceTest {
         assertEquals(100, PreparationService.progress(app));
         assertFalse(PreparationService.requiresInstall(app));
         assertTrue(PreparationService.status(app).toLowerCase().contains("refresh"));
-        assertEquals("synthetic - Azahar.3ds", documents.createdName);
+        assertEquals("synthetic.3ds", documents.createdName);
         assertEquals("application/octet-stream", documents.createdMime);
         assertEquals(documents.folder, documents.createdParent);
         assertArrayEquals(preparedBytes, Files.readAllBytes(documents.createdFile().toPath()));
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
         assertTrue(documents.deleted.isEmpty());
         assertWorkspaceEmpty();
+    }
+
+    @Test public void legacyDownloadGetsCleanPreparedNameWithoutChangingOriginal() throws Exception {
+        launch(documents.tree, "000400000011C400 Pokemon Omega Ruby (CTR-P-ECRA) (v3.3.0) (W).legit-a3bfbe6f17f0.cia");
+        awaitFinished();
+        assertTrue(PreparationService.status(app), PreparationService.isReady(app));
+        assertEquals("Pokemon Omega Ruby (World).3ds", documents.createdName);
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void savedStatusUsesProvidersActualNameAfterCollision() throws Exception {
+        documents.returnedName = "synthetic (2).3ds";
+        launch(documents.tree);
+        awaitFinished();
+        assertTrue(PreparationService.status(app), PreparationService.isReady(app));
+        assertTrue(PreparationService.status(app).contains("Saved synthetic (2).3ds."));
     }
 
     @Test public void outputWriteFailureDeletesPartialCopyAndKeepsOriginal() throws Exception {
@@ -246,7 +262,7 @@ public class PreparationServiceTest {
         assertTrue(PreparationService.status(app), PreparationService.isReady(app));
         assertTrue(PreparationService.requiresInstall(app));
         assertTrue(PreparationService.status(app).contains("Install CIA"));
-        assertEquals("synthetic - Azahar.cia", documents.createdName);
+        assertEquals("synthetic.cia", documents.createdName);
         assertArrayEquals(preparedBytes, Files.readAllBytes(documents.createdFile().toPath()));
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
     }
@@ -335,7 +351,11 @@ public class PreparationServiceTest {
     }
 
     private void launch(Uri destination) {
-        PreparationService.start(app, downloadId, destination, "synthetic.cia");
+        launch(destination, "synthetic.cia");
+    }
+
+    private void launch(Uri destination, String name) {
+        PreparationService.start(app, downloadId, destination, name);
         Intent intent = shadowOf(app).getNextStartedService();
         assertNotNull(intent);
         service = Robolectric.buildService(PreparationService.class, intent).create().startCommand(0, 1);
@@ -381,6 +401,7 @@ public class PreparationServiceTest {
         volatile Uri createdParent;
         volatile Uri createResult;
         volatile String createdName;
+        volatile String returnedName;
         volatile String createdMime;
         volatile int createCalls;
         volatile int openedFolders;
@@ -409,7 +430,8 @@ public class PreparationServiceTest {
                             row[i] = isFolder(uri) ? DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE
                                     : DocumentsContract.Document.FLAG_SUPPORTS_WRITE | DocumentsContract.Document.FLAG_SUPPORTS_DELETE;
                             break;
-                        default: row[i] = isFolder(uri) ? "n3ds" : file.getName();
+                        default: row[i] = isFolder(uri) ? "n3ds"
+                                : (returnedName != null ? returnedName : createdName);
                     }
                 }
                 cursor.addRow(row);

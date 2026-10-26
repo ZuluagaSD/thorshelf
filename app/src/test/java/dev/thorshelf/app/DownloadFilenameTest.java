@@ -17,7 +17,7 @@ public class DownloadFilenameTest {
                 + "00040000000A8500%20Professor%20Layton%20and%20the%20Miracle%20Mask%20"
                 + "%28CTR-P-AKKE%29%20%28v0.2.0%29%20%28U%29.piratelegit.cia";
         String result = DownloadFilename.resolve(OPAQUE_URL, header, BINARY);
-        assertEquals(DownloadPolicy.safeFilename(name), result);
+        assertEquals("Professor Layton and the Miracle Mask (USA).cia", result);
         assertTrue(result.endsWith(".cia"));
     }
 
@@ -28,6 +28,13 @@ public class DownloadFilenameTest {
                 "attachment; filename*=UTF-8''%E6%97%A5%E6%9C%AC%E8%AA%9E.cia", BINARY));
         assertEquals("Café.cia", DownloadFilename.resolve(OPAQUE_URL,
                 "attachment; FILENAME*=ISO-8859-1''Caf%E9.cia", BINARY));
+    }
+
+    @Test public void removesCatalogMetadataBeforeLengthLimitingTheTitle() {
+        String title = "A".repeat(70);
+        assertEquals(title + " (World).cia", DownloadFilename.resolve(OPAQUE_URL,
+                "attachment; filename=\"000400000011C400 " + title
+                        + " (CTR-P-ECRA) (v3.3.0) (W).legit.cia\"", BINARY));
     }
 
     @Test public void parsesQuotedSemicolonsEscapesAndExtraParameters() {

@@ -83,7 +83,7 @@ public final class PreparationService extends Service {
         }
         status(app);
         String token = UUID.randomUUID().toString();
-        String safeName = DownloadPolicy.safeFilename(name);
+        String safeName = GameFilename.clean(name);
         synchronized (STATE_LOCK) {
             if (active || recoveryRunning) {
                 throw new IllegalStateException("A CIA is already being prepared or cleaned up. Wait for it to finish.");
@@ -221,7 +221,7 @@ public final class PreparationService extends Service {
             activeToken = token;
         }
         PreparationJob job = new PreparationJob(startId, downloadId, folder,
-                DownloadPolicy.safeFilename(intent.getStringExtra("name")), token, pipeline,
+                GameFilename.clean(intent.getStringExtra("name")), token, pipeline,
                 new File(workspaceRoot(this), token));
         current = job;
         try {
@@ -307,7 +307,7 @@ public final class PreparationService extends Service {
             closeStreams(job);
             checkCancelled(job);
             success = true;
-            message = "Saved " + outputName + ". " + (prepared.requiresInstall
+            message = "Saved " + documentName(resolver, job.destination, outputName) + ". " + (prepared.requiresInstall
                     ? "Use Install CIA in Azahar to add this prepared package."
                     : "Refresh Azahar's game list to see it. Add this folder to Azahar's Games Folder once if needed.");
         } catch (PreparationException error) {
@@ -512,9 +512,20 @@ public final class PreparationService extends Service {
         } catch (IllegalArgumentException ignored) { return true; }
     }
 
+    private static String documentName(ContentResolver resolver, Uri document, String fallback) {
+        try (Cursor cursor = resolver.query(document, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                String name = cursor.getString(0);
+                if (name != null && !name.trim().isEmpty()) return name;
+            }
+        } catch (RuntimeException ignored) {
+            // Some providers omit display names; the requested name is still useful.
+        }
+        return fallback;
+    }
+
     private static String preparedFilename(String original, boolean requiresInstall) {
-        String stem = original == null ? "game" : original.replaceFirst("(?i)\\.cia$", "");
-        return DownloadPolicy.safeFilename(stem + " - Azahar." + (requiresInstall ? "cia" : "3ds"));
+        return GameFilename.withExtension(original, requiresInstall ? "cia" : "3ds");
     }
 
     private static void releaseDocumentGrant(Context context, Uri uri) {

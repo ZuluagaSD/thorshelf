@@ -31,7 +31,7 @@ public final class DownloadFilename {
         }
         // Check before sanitizing: safeFilename's generic default must not invent a CIA type.
         if (name == null || !DownloadPolicy.isContentFile(name.trim())) return null;
-        String safe = DownloadPolicy.safeFilename(name);
+        String safe = GameFilename.clean(name);
         return DownloadPolicy.isContentFile(safe) ? safe : null;
     }
 

@@ -22,6 +22,8 @@ import android.text.format.Formatter;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.Gravity;
+import android.graphics.Typeface;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
@@ -37,7 +39,6 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -72,8 +73,14 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private EditText search;
     private TextView pageTitle, browserError, downloadSummary, exportStatus, preparationStatus, preparedGuidance, displayStatus;
     private ProgressBar loading, preparationProgress;
-    private Button cancelPreparation, openPrepared;
+    private Button cancelPreparation, openPrepared, preparationDetails;
     private LinearLayout preparationPanel;
+    private TextView preparationHeading, preparationPercent, downloadBadge, wifiStatus, shelfHeading;
+    private ParcelView preparationParcel;
+    private BrowseHomeView browseHome;
+    private LinearLayout webPanel;
+    private boolean showingShelf = true;
+    private List<DownloadStore.Entry> latestEntries = new ArrayList<>();
     private FrameLayout content;
     private LinearLayout browsePanel, downloadList;
     private ScrollView downloadsPanel, setupPanel;
@@ -115,14 +122,17 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                     android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::navigateBack);
         }
+        setShelfVisible(state == null || state.getBoolean("showingShelf", true));
         showTab(state == null ? 0 : state.getInt("tab", 0));
     }
 
+    private boolean wideLayout() {
+        return getResources().getConfiguration().screenWidthDp >= 700;
+    }
+
     private void buildUi() {
-        boolean compact = getResources().getConfiguration().orientation
-                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
         LinearLayout root = Ui.column(this);
-        root.setBackgroundColor(Ui.BG);
+        root.setBackground(Ui.dottedBackground(this));
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             if (Build.VERSION.SDK_INT >= 30) {
                 Insets edges = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()
@@ -135,43 +145,80 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             return insets;
         });
         setContentView(root);
-        LinearLayout heading = Ui.row(this); Ui.pad(heading, 10);
-        LinearLayout brand = Ui.column(this);
-        brand.addView(Ui.heading(this, "ThorShelf"));
-        if (!compact) brand.addView(Ui.text(this, "hShop on your handheld", 12, Ui.MINT));
-        heading.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
-        heading.addView(Ui.button(this, "Azahar ↗", this::azaharHelp));
-        root.addView(heading);
-        content = new FrameLayout(this);
-        root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
-        buildBrowser();
-        buildDownloads();
-        buildSetup();
-        content.addView(browsePanel, new FrameLayout.LayoutParams(-1, -1));
-        content.addView(downloadsPanel, new FrameLayout.LayoutParams(-1, -1));
-        content.addView(setupPanel, new FrameLayout.LayoutParams(-1, -1));
-        LinearLayout tabs = Ui.row(this); Ui.pad(tabs, 6);
+        LinearLayout heading = Ui.row(this);
+        heading.setPadding(Ui.dp(this, 18), Ui.dp(this, 8), Ui.dp(this, 18), Ui.dp(this, 8));
+        heading.setBackgroundColor(Ui.BG);
+        LinearLayout brand = Ui.row(this);
+        brand.addView(Ui.logo(this, 34));
+        TextView name = Ui.heading(this, "ThorShelf");
+        name.setTextSize(24);
+        name.setPadding(Ui.dp(this, 9), 0, Ui.dp(this, 12), 0);
+        brand.addView(name);
+        heading.addView(brand, new LinearLayout.LayoutParams(wideLayout() ? -2 : 0, -2, wideLayout() ? 0 : 1));
+        LinearLayout tabs = Ui.row(this);
+        Ui.pad(tabs, 3);
+        tabs.setBackground(Ui.rounded(this, Ui.SOFT, Ui.BORDER, 28));
         String[] names = {"Browse", "Downloads", "Setup"};
         for (int i = 0; i < names.length; i++) {
             final int index = i;
-            Button button = Ui.button(this, names[i], () -> showTab(index));
-            tabButtons.add(button); Ui.weighted(tabs, button);
+            Button button = Ui.tabButton(this, names[i], () -> showTab(index));
+            tabButtons.add(button);
+            tabs.addView(button, new LinearLayout.LayoutParams(0, -2, 1));
         }
-        root.addView(tabs);
+        downloadBadge = Ui.text(this, "", 12, Ui.ACCENT);
+        downloadBadge.setGravity(Gravity.CENTER);
+        downloadBadge.setMinWidth(Ui.dp(this, 24));
+        downloadBadge.setContentDescription("Active downloads");
+        downloadBadge.setVisibility(View.GONE);
+        if (wideLayout()) {
+            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, -2, 1);
+            tp.setMargins(Ui.dp(this, 20), 0, Ui.dp(this, 12), 0);
+            heading.addView(tabs, tp);
+        }
+        heading.addView(downloadBadge);
+        heading.addView(Ui.button(this, "Azahar ↗", this::azaharHelp));
+        root.addView(heading);
+        if (!wideLayout()) {
+            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-1, -2);
+            tp.setMargins(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 6));
+            root.addView(tabs, tp);
+        }
+        View rule = new View(this); rule.setBackgroundColor(Ui.BORDER);
+        root.addView(rule, new LinearLayout.LayoutParams(-1, Ui.dp(this, 1)));
+        content = new FrameLayout(this);
+        root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
+        buildBrowser(); buildDownloads(); buildSetup();
+        content.addView(browsePanel, new FrameLayout.LayoutParams(-1, -1));
+        content.addView(downloadsPanel, new FrameLayout.LayoutParams(-1, -1));
+        content.addView(setupPanel, new FrameLayout.LayoutParams(-1, -1));
+        TextView hints = Ui.text(this, wideLayout()
+                ? "Ⓐ  Select     Ⓑ  Back          L / R  Tabs          Ⓨ  Search"
+                : "Ⓐ Select    Ⓑ Back    L / R Tabs    Ⓨ Search", 12, Ui.MUTED);
+        hints.setGravity(Gravity.CENTER);
+        hints.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+        hints.setBackgroundColor(Ui.BG);
+        root.addView(hints);
     }
 
     @SuppressWarnings("SetJavaScriptEnabled")
     private void buildBrowser() {
-        boolean compact = getResources().getConfiguration().orientation
-                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
         browsePanel = Ui.column(this);
-        LinearLayout searchRow = Ui.row(this); Ui.pad(searchRow, 6);
-        if (compact) searchRow.addView(Ui.button(this, "‹ Back", this::navigateBack));
+        LinearLayout searchArea = wideLayout() ? Ui.row(this) : Ui.column(this);
+        searchArea.setPadding(Ui.dp(this, 18), Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 10));
+        shelfHeading = Ui.heading(this, "Your next adventure.");
+        shelfHeading.setTextSize(wideLayout() ? 25 : 24);
+        if (wideLayout()) searchArea.addView(shelfHeading, new LinearLayout.LayoutParams(0, -2, 1));
+        else searchArea.addView(shelfHeading);
+        LinearLayout searchRow = Ui.row(this);
         search = new EditText(this);
         search.setSingleLine(true);
-        search.setTextSize(16); search.setTextColor(Ui.TEXT); search.setHintTextColor(Ui.MUTED);
-        search.setHint("Search the 3DS catalog");
-        search.setContentDescription("Search hShop");
+        search.setTextSize(15); search.setTextColor(Ui.TEXT); search.setHintTextColor(Ui.MUTED);
+        search.setHint("Search the catalog"); search.setContentDescription("Search hShop");
+        search.setPadding(Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 10));
+        search.setMinHeight(Ui.dp(this, 48));
+        search.setBackground(Ui.rounded(this, Ui.SURFACE, Ui.BORDER, 28));
+        search.setOnFocusChangeListener((v, focused) ->
+                search.setBackground(Ui.rounded(this, Ui.SURFACE, focused ? Ui.ORANGE : Ui.BORDER, 28)));
         search.setInputType(InputType.TYPE_CLASS_TEXT);
         search.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         search.setOnEditorActionListener((v, action, event) -> {
@@ -182,31 +229,31 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             return false;
         });
         searchRow.addView(search, new LinearLayout.LayoutParams(0, -2, 1));
-        searchRow.addView(Ui.button(this, "Search", this::submitSearch));
-        if (compact) searchRow.addView(Ui.button(this, "Reload", () -> browser.reload()));
-        browsePanel.addView(searchRow);
-        HorizontalScrollView shortcuts = new HorizontalScrollView(this);
-        shortcuts.setHorizontalScrollBarEnabled(false);
-        LinearLayout links = Ui.row(this);
-        addShortcut(links, "Home", DownloadPolicy.HOME);
-        addShortcut(links, "Games", DownloadPolicy.HOME + "c/games");
-        addShortcut(links, "Updates", DownloadPolicy.HOME + "c/updates");
-        addShortcut(links, "DLC", DownloadPolicy.HOME + "c/dlc");
-        addShortcut(links, "Virtual Console", DownloadPolicy.HOME + "c/virtual-console");
-        shortcuts.addView(links);
-        if (!compact) browsePanel.addView(shortcuts);
+        LinearLayout.LayoutParams searchButton = new LinearLayout.LayoutParams(-2, -2);
+        searchButton.setMarginStart(Ui.dp(this, 8));
+        searchRow.addView(Ui.primaryButton(this, "Search", this::submitSearch), searchButton);
+        if (wideLayout()) searchArea.addView(searchRow, new LinearLayout.LayoutParams(0, -2, 1));
+        else searchArea.addView(searchRow, new LinearLayout.LayoutParams(-1, -2));
+        browsePanel.addView(searchArea);
+        browseHome = new BrowseHomeView(this, this::loadCatalog);
+        browsePanel.addView(browseHome, new LinearLayout.LayoutParams(-1, 0, 1));
+        webPanel = Ui.column(this);
         LinearLayout tools = Ui.row(this);
+        tools.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), Ui.dp(this, 6));
         tools.addView(Ui.button(this, "‹ Back", this::navigateBack));
+        tools.addView(Ui.button(this, "Shelf", () -> setShelfVisible(true)));
         pageTitle = Ui.text(this, "hShop", 13, Ui.MUTED);
         pageTitle.setSingleLine(true); pageTitle.setEllipsize(TextUtils.TruncateAt.END);
+        pageTitle.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 8), 0);
         tools.addView(pageTitle, new LinearLayout.LayoutParams(0, -2, 1));
         tools.addView(Ui.button(this, "Reload", () -> browser.reload()));
-        if (!compact) browsePanel.addView(tools);
+        webPanel.addView(tools);
         browserError = Ui.text(this, "", 14, Ui.AMBER);
         Ui.pad(browserError, 8); browserError.setVisibility(View.GONE);
-        browsePanel.addView(browserError);
+        webPanel.addView(browserError);
         loading = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        loading.setMax(100); browsePanel.addView(loading, new LinearLayout.LayoutParams(-1, Ui.dp(this, 3)));
+        loading.setMax(100); Ui.styleProgress(loading);
+        webPanel.addView(loading, new LinearLayout.LayoutParams(-1, Ui.dp(this, 3)));
         browser = new WebView(this); browser.setBackgroundColor(Ui.BG);
         WebSettings settings = browser.getSettings();
         settings.setJavaScriptEnabled(true); // Required by hShop's interactive download challenge.
@@ -259,75 +306,130 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             }
         });
         browser.setDownloadListener(this::confirmDownload);
-        browsePanel.addView(browser, new LinearLayout.LayoutParams(-1, 0, 1));
+        webPanel.addView(browser, new LinearLayout.LayoutParams(-1, 0, 1));
+        browsePanel.addView(webPanel, new LinearLayout.LayoutParams(-1, 0, 1));
     }
 
-    private void addShortcut(LinearLayout row, String name, String url) {
-        Button b = Ui.button(this, name, () -> loadCatalog(url));
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, -2);
-        p.setMargins(Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3));
-        row.addView(b, p);
+    private void setShelfVisible(boolean visible) {
+        showingShelf = visible;
+        browseHome.setVisibility(visible ? View.VISIBLE : View.GONE);
+        webPanel.setVisibility(visible ? View.GONE : View.VISIBLE);
+        shelfHeading.setVisibility(visible ? View.VISIBLE : View.GONE);
+        updateCompanion();
     }
 
     private void buildDownloads() {
         downloadsPanel = new ScrollView(this);
-        LinearLayout body = Ui.column(this); Ui.pad(body, 16);
+        downloadsPanel.setFillViewport(true);
+        LinearLayout body = Ui.column(this); Ui.pad(body, 18);
         downloadsPanel.addView(body);
-        body.addView(Ui.heading(this, "Downloads"));
-        body.addView(Ui.text(this, "Saved to Downloads / ThorShelf. Prepare a completed CIA into your Azahar games folder, then refresh Azahar’s game list.", 14, Ui.MUTED));
-        downloadSummary = Ui.text(this, "", 15, Ui.MINT); body.addView(downloadSummary);
+        LinearLayout heading = Ui.row(this);
+        heading.addView(Ui.heading(this, "Downloads"), new LinearLayout.LayoutParams(0, -2, 1));
+        wifiStatus = Ui.text(this, "Wi-Fi only", 12, Ui.MUTED);
+        Ui.pad(wifiStatus, 10);
+        wifiStatus.setBackground(Ui.rounded(this, Ui.SURFACE, Ui.BORDER, 24));
+        heading.addView(wifiStatus);
+        body.addView(heading);
+        body.addView(Ui.text(this, "A little closer to your next adventure.", 15, Ui.MUTED));
+        downloadSummary = Ui.text(this, "", 13, Ui.ACCENT); body.addView(downloadSummary);
         exportStatus = Ui.text(this, "", 14, Ui.AMBER); body.addView(exportStatus);
-        preparationPanel = Ui.column(this); Ui.pad(preparationPanel, 12);
-        preparationPanel.setBackground(Ui.rounded(this, Ui.PANEL, 0));
-        preparationPanel.addView(Ui.text(this, "PREPARE FOR AZAHAR", 12, Ui.MINT));
+        LinearLayout columns = wideLayout() ? Ui.row(this) : Ui.column(this);
+        columns.setGravity(Gravity.TOP);
+        body.addView(columns, new LinearLayout.LayoutParams(-1, -2));
+        downloadList = Ui.column(this);
+        preparationPanel = Ui.card(this, 0xFFFFEED8);
+        preparationHeading = Ui.text(this, "YOUR NEXT ADVENTURE", 11, Ui.ACCENT);
+        preparationHeading.setLetterSpacing(0.12f);
+        preparationPanel.addView(preparationHeading);
+        preparationParcel = Ui.parcel(this);
+        preparationPanel.addView(preparationParcel, new LinearLayout.LayoutParams(-1, Ui.dp(this, wideLayout() ? 120 : 100)));
         preparationStatus = Ui.text(this, "", 15, Ui.TEXT); preparationPanel.addView(preparationStatus);
+        preparationPercent = Ui.text(this, "", 13, Ui.ACCENT); preparationPanel.addView(preparationPercent);
         preparationProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        preparationProgress.setMax(100); preparationPanel.addView(preparationProgress);
+        preparationProgress.setMax(100); Ui.styleProgress(preparationProgress);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 8));
+        progressParams.setMargins(0, Ui.dp(this, 6), 0, Ui.dp(this, 12));
+        preparationPanel.addView(preparationProgress, progressParams);
         cancelPreparation = Ui.button(this, "Cancel preparation", () -> {
             PreparationService.cancel(this);
             toast("Stopping at the next safe point. Your original download will stay intact.");
             refreshDownloads();
         });
         preparationPanel.addView(cancelPreparation);
-        preparedGuidance = Ui.text(this, "", 14, Ui.MUTED);
-        preparationPanel.addView(preparedGuidance);
-        openPrepared = Ui.button(this, "Open Azahar", this::launchAzahar);
-        preparationPanel.addView(openPrepared);
-        preparationPanel.setVisibility(View.GONE); body.addView(preparationPanel);
-        downloadList = Ui.column(this); body.addView(downloadList);
+        preparedGuidance = Ui.text(this, "", 14, Ui.MUTED); preparationPanel.addView(preparedGuidance);
+        openPrepared = Ui.primaryButton(this, "Open Azahar", this::launchAzahar);
+        preparationDetails = Ui.button(this, "Details", () -> new AlertDialog.Builder(this)
+                .setTitle("Preparation details").setMessage(PreparationService.status(this))
+                .setPositiveButton("Close", null).show());
+        LinearLayout preparationActions = Ui.row(this);
+        Ui.weighted(preparationActions, openPrepared);
+        Ui.weighted(preparationActions, preparationDetails);
+        preparationPanel.addView(preparationActions);
+        if (wideLayout()) {
+            columns.addView(downloadList, new LinearLayout.LayoutParams(0, -2, 1.8f));
+            LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(0, -2, 1);
+            panelParams.setMargins(Ui.dp(this, 16), Ui.dp(this, 8), 0, 0);
+            columns.addView(preparationPanel, panelParams);
+        } else {
+            columns.addView(preparationPanel, new LinearLayout.LayoutParams(-1, -2));
+            columns.addView(downloadList, new LinearLayout.LayoutParams(-1, -2));
+        }
     }
 
     private void buildSetup() {
         setupPanel = new ScrollView(this);
-        LinearLayout body = Ui.column(this); Ui.pad(body, 20); setupPanel.addView(body);
-        body.addView(Ui.text(this, "MADE FOR YOUR HANDHELD", 12, Ui.MINT));
-        body.addView(Ui.heading(this, "A shelf for your next game."));
-        body.addView(Ui.text(this, "Browse hShop, open a title, complete its browser check, then tap the download link. Android keeps downloads running when you leave ThorShelf.", 16, Ui.TEXT));
-        body.addView(Ui.heading(this, "Downloads"));
-        Switch wifi = new Switch(this); wifi.setText("Wi-Fi only"); wifi.setTextColor(Ui.TEXT);
-        wifi.setMinHeight(Ui.dp(this, 56)); wifi.setChecked(preferences.getBoolean("wifiOnly", true));
-        wifi.setOnCheckedChangeListener((button, checked) -> preferences.edit().putBoolean("wifiOnly", checked).apply());
-        body.addView(wifi);
-        body.addView(Ui.text(this, "Applies to new downloads. Android retries interrupted transfers when it can. If a link expires, return to its catalog page for a fresh one.", 14, Ui.MUTED));
-        body.addView(Ui.heading(this, "Your second screen"));
-        Switch dual = new Switch(this); dual.setText("Companion display"); dual.setTextColor(Ui.TEXT);
-        dual.setMinHeight(Ui.dp(this, 56)); dual.setChecked(preferences.getBoolean("companion", true));
+        LinearLayout body = Ui.column(this); Ui.pad(body, 18); setupPanel.addView(body);
+        body.addView(Ui.heading(this, "Make yourself at home."));
+        body.addView(Ui.text(this, "A few little things, just the way you like them.", 15, Ui.MUTED));
+        LinearLayout downloadSettings = settingsCard(body, "Downloads");
+        Switch wifi = new Switch(this); wifi.setText("Wi-Fi only"); styleSwitch(wifi);
+        wifi.setChecked(preferences.getBoolean("wifiOnly", true));
+        wifi.setOnCheckedChangeListener((button, checked) -> {
+            preferences.edit().putBoolean("wifiOnly", checked).apply();
+            wifiStatus.setText(checked ? "Wi-Fi only" : "All networks");
+        });
+        downloadSettings.addView(wifi);
+        downloadSettings.addView(Ui.text(this, "Applies to new downloads. Android keeps your queue moving in the background and retries interrupted transfers.", 14, Ui.MUTED));
+        LinearLayout companionSettings = settingsCard(body, "Your second screen");
+        Switch dual = new Switch(this); dual.setText("Companion display"); styleSwitch(dual);
+        dual.setChecked(preferences.getBoolean("companion", true));
         dual.setOnCheckedChangeListener((button, checked) -> {
             preferences.edit().putBoolean("companion", checked).apply(); configureCompanion();
         });
-        body.addView(dual);
-        displayStatus = Ui.text(this, "", 14, Ui.MUTED); body.addView(displayStatus);
-        body.addView(Ui.text(this, "Shows the current page and download status on an available second display. The app also works on a single screen.", 14, Ui.MUTED));
-        body.addView(Ui.heading(this, "Using Azahar"));
-        body.addView(Ui.text(this, "In Downloads, choose “Prepare for Azahar” on a completed CIA and select your games folder, such as ROMs/n3ds. ThorShelf decrypts and checks a new copy entirely on this device. Base games are saved as playable .3ds files. Keep about five times the download’s size free in internal storage for temporary files, plus room for the saved copy.\n\nSet that same folder as Azahar’s Games Folder once, then refresh its game list after preparation.\n\nUpdates and DLC stay as CIA files: use “Install CIA” in Azahar and select the prepared file. They need their matching game. Preparation does not add emulator support for DSiWare or other unsupported content.", 15, Ui.TEXT));
-        body.addView(Ui.button(this, "Open Azahar", this::launchAzahar));
-        body.addView(Ui.heading(this, "Controls"));
-        body.addView(Ui.text(this, "D-pad: move focus · A: select · B: back\nL / R: switch tabs · Y: search\nUse touch for the website’s verification challenge.", 15, Ui.TEXT));
-        body.addView(Ui.heading(this, "Browser help"));
-        body.addView(Ui.text(this, "If verification will not load, update Android System WebView. You can also open the current catalog page in your browser.", 14, Ui.MUTED));
-        body.addView(Ui.button(this, "Open catalog in browser", () -> openExternal(sourcePage)));
-        body.addView(Ui.text(this, "ThorShelf 0.4.0 · Unofficial companion\nCatalog and availability are provided by hShop. Native preparation uses cia3ds-android and Project_CTR; license notices are included with the app. Not affiliated with hShop, Nintendo, AYN, or Azahar.", 12, Ui.MUTED));
-        body.addView(Ui.button(this, "Open-source licenses", this::showLicenses));
+        companionSettings.addView(dual);
+        displayStatus = Ui.text(this, "", 14, Ui.MUTED); companionSettings.addView(displayStatus);
+        companionSettings.addView(Ui.text(this, "Keep an eye on downloads and preparation while you browse. Works with an available second display, or on a single screen.", 14, Ui.MUTED));
+        LinearLayout games = settingsCard(body, "Ready for Azahar");
+        games.addView(Ui.text(this, "1. Download a game from its catalog page.\n2. Choose Prepare for Azahar and select your games folder.\n3. Add that folder in Azahar, then refresh its game list.", 15, Ui.TEXT));
+        games.addView(Ui.text(this, "Your original download stays safe. Preparation needs temporary internal storage of about five times the download size, plus space for the prepared copy. Updates and DLC still need Install CIA in Azahar and their matching game.", 14, Ui.MUTED));
+        games.addView(Ui.primaryButton(this, "Open Azahar", this::launchAzahar));
+        LinearLayout controls = settingsCard(body, "Made for your handheld");
+        controls.addView(Ui.text(this, "D-pad: move focus · A: select · B: back\nL / R: switch tabs · Y: search\nUse touch for the website’s verification challenge.", 15, Ui.TEXT));
+        LinearLayout help = settingsCard(body, "A little help");
+        help.addView(Ui.text(this, "If a download link expires, return to its catalog page for a fresh one. If verification will not load, update Android System WebView or open the catalog in your browser.", 14, Ui.MUTED));
+        help.addView(Ui.button(this, "Open catalog in browser", () -> openExternal(sourcePage)));
+        help.addView(Ui.button(this, "Open-source licenses", this::showLicenses));
+        body.addView(Ui.text(this, "ThorShelf 0.4.1 · Unofficial companion\nCatalog and availability are provided by hShop. Not affiliated with hShop, Nintendo, AYN, or Azahar. Shelf illustrations are bundled editorial artwork.", 12, Ui.MUTED));
+    }
+
+    private LinearLayout settingsCard(LinearLayout parent, String title) {
+        LinearLayout card = Ui.card(this);
+        TextView heading = Ui.heading(this, title); heading.setTextSize(20); card.addView(heading);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, Ui.dp(this, 12), 0, Ui.dp(this, 2));
+        parent.addView(card, params);
+        return card;
+    }
+
+    private void styleSwitch(Switch control) {
+        control.setTextColor(Ui.TEXT); control.setTextSize(16);
+        control.setMinHeight(Ui.dp(this, 52));
+        control.setThumbTintList(new android.content.res.ColorStateList(
+                new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {Ui.ACCENT, Ui.MUTED}));
+        control.setTrackTintList(new android.content.res.ColorStateList(
+                new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {0xFFFFD4A5, Ui.BORDER}));
     }
 
     private void showLicenses() {
@@ -358,11 +460,11 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         String query = search.getText().toString().trim();
         if (query.isEmpty()) { search.requestFocus(); return; }
         getSystemService(InputMethodManager.class).hideSoftInputFromWindow(search.getWindowToken(), 0);
-        browser.requestFocus(); loadCatalog(DownloadPolicy.searchUrl(query));
+        loadCatalog(DownloadPolicy.searchUrl(query));
     }
     private void loadCatalog(String url) {
         if (!DownloadPolicy.isCatalog(url)) return;
-        showTab(0); browser.loadUrl(url);
+        showTab(0); setShelfVisible(false); browser.loadUrl(url); browser.requestFocus();
     }
     private void browserProblem(String message) {
         browserError.setText(message); browserError.setVisibility(View.VISIBLE);
@@ -414,6 +516,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     }
 
     private void renderDownloads(List<DownloadStore.Entry> entries) {
+        latestEntries = new ArrayList<>(entries);
         int active = 0, complete = 0;
         StringBuilder keys = new StringBuilder();
         for (DownloadStore.Entry entry : entries) {
@@ -423,27 +526,45 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         }
         queueSummary = entries.isEmpty() ? "No downloads yet" : active + " active · " + complete + " downloaded · " + entries.size() + " total";
         downloadSummary.setText(queueSummary);
+        downloadBadge.setText(Integer.toString(active));
+        downloadBadge.setContentDescription(active + " active downloads");
+        downloadBadge.setVisibility(active > 0 ? View.VISIBLE : View.GONE);
+        wifiStatus.setText(preferences.getBoolean("wifiOnly", true) ? "Wi-Fi only" : "All networks");
         String exportMessage = ExportService.status(this);
         exportStatus.setText(exportMessage);
         exportStatus.setVisibility(exportMessage.isEmpty() ? View.GONE : View.VISIBLE);
         String preparationMessage = PreparationService.status(this);
         boolean preparing = PreparationService.isRunning(this);
-        preparationStatus.setText(preparationMessage);
-        preparationPanel.setVisibility(preparationMessage.isEmpty() ? View.GONE : View.VISIBLE);
+        boolean ready = PreparationService.isReady(this);
+        preparationStatus.setText(preparationMessage.isEmpty()
+                ? "Download a game, then prepare it for Azahar. Your next adventure starts here."
+                : PreparationText.summary(preparationMessage, ready));
+        preparationStatus.setTextSize(ready ? 17 : 15);
+        preparationDetails.setVisibility(preparationMessage.isEmpty() ? View.GONE : View.VISIBLE);
+        preparationParcel.getLayoutParams().height = Ui.dp(this, ready ? 80 : wideLayout() ? 120 : 100);
+        preparationParcel.requestLayout();
+        preparationHeading.setText(preparing ? "PREPARING FOR AZAHAR"
+                : PreparationService.isReady(this) ? "READY FOR AZAHAR" : "YOUR NEXT ADVENTURE");
+        preparationParcel.setAnimating(preparing);
+        preparationPercent.setText(PreparationService.progress(this) + "%");
+        preparationPercent.setVisibility(preparing ? View.VISIBLE : View.GONE);
+        preparationPanel.setVisibility(wideLayout() || !preparationMessage.isEmpty() ? View.VISIBLE : View.GONE);
         preparationProgress.setProgress(PreparationService.progress(this));
         preparationProgress.setVisibility(preparing ? View.VISIBLE : View.GONE);
         cancelPreparation.setVisibility(preparing ? View.VISIBLE : View.GONE);
-        boolean ready = PreparationService.isReady(this);
         preparedGuidance.setText(PreparationService.requiresInstall(this)
-                ? "In Azahar, choose “Install CIA” and select the prepared file. Updates and DLC need their matching game."
-                : "Set this folder as Azahar’s Games Folder once, then refresh its game list to see your game.");
+                ? "Open Azahar and choose Install CIA to add the prepared file."
+                : "Refresh your Azahar games folder to see the game.");
         preparedGuidance.setVisibility(ready ? View.VISIBLE : View.GONE);
         openPrepared.setVisibility(ready ? View.VISIBLE : View.GONE);
         if (!renderedRows.equals(keys.toString()) || (entries.isEmpty() && downloadList.getChildCount() == 0)) {
             renderedRows = keys.toString(); downloadList.removeAllViews(); downloadCards.clear();
             if (entries.isEmpty()) {
-                downloadList.addView(Ui.text(this, "Your queue is ready.\nFind a title in Browse to get started.", 18, Ui.TEXT));
-                downloadList.addView(Ui.button(this, "Browse games", () -> loadCatalog(DownloadPolicy.HOME + "c/games")));
+                LinearLayout empty = Ui.card(this);
+                empty.addView(Ui.heading(this, "A shelf full of possibilities."));
+                empty.addView(Ui.text(this, "Find a game in Browse. Your downloads and progress will appear here.", 15, Ui.MUTED));
+                empty.addView(Ui.primaryButton(this, "Browse games", () -> { showTab(0); setShelfVisible(true); }));
+                downloadList.addView(empty);
             }
             for (DownloadStore.Entry entry : entries) {
                 DownloadCard card = new DownloadCard(entry); downloadCards.put(entry.id, card);
@@ -463,12 +584,25 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         final TextView status;
         final ProgressBar progress;
         DownloadCard(DownloadStore.Entry entry) {
-            root = Ui.column(MainActivity.this); Ui.pad(root, 14);
-            root.setBackground(Ui.rounded(MainActivity.this, Ui.PANEL, 0));
-            root.addView(Ui.text(MainActivity.this, entry.name, 17, Ui.TEXT));
-            status = Ui.text(MainActivity.this, "", 13, Ui.MUTED); root.addView(status);
+            root = Ui.card(MainActivity.this); Ui.pad(root, 14);
+            LinearLayout details = Ui.row(MainActivity.this);
+            details.setGravity(Gravity.TOP);
+            details.addView(GameArtwork.thumbnail(MainActivity.this, entry.displayName, 64),
+                    new LinearLayout.LayoutParams(Ui.dp(MainActivity.this, 64), Ui.dp(MainActivity.this, 64)));
+            LinearLayout text = Ui.column(MainActivity.this);
+            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, -2, 1);
+            textParams.setMarginStart(Ui.dp(MainActivity.this, 12));
+            details.addView(text, textParams);
+            TextView title = Ui.text(MainActivity.this, GameArtwork.displayTitle(entry.displayName), 17, Ui.TEXT);
+            title.setTypeface(null, Typeface.BOLD);
+            text.addView(title);
+            status = Ui.text(MainActivity.this, "", 13, Ui.MUTED); text.addView(status);
             progress = new ProgressBar(MainActivity.this, null, android.R.attr.progressBarStyleHorizontal);
-            progress.setMax(1000); root.addView(progress);
+            progress.setMax(1000); Ui.styleProgress(progress);
+            LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(-1, Ui.dp(MainActivity.this, 6));
+            pp.setMargins(0, Ui.dp(MainActivity.this, 6), 0, Ui.dp(MainActivity.this, 8));
+            text.addView(progress, pp);
+            root.addView(details);
             LinearLayout actions = Ui.row(MainActivity.this);
             Ui.weighted(actions, Ui.button(MainActivity.this, "Catalog page", () -> loadCatalog(entry.sourcePage)));
             if (entry.isComplete()) {
@@ -492,13 +626,14 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             }
             root.addView(actions);
             if (entry.isComplete() && entry.name.toLowerCase(Locale.ROOT).endsWith(".cia")) {
-                root.addView(Ui.button(MainActivity.this, "Prepare for Azahar", () -> prepareCopy(entry)));
+                root.addView(Ui.primaryButton(MainActivity.this, "Prepare for Azahar", () -> prepareCopy(entry)));
             }
         }
         void update(DownloadStore.Entry entry) {
             String size = Formatter.formatFileSize(MainActivity.this, entry.downloaded);
             if (entry.total > 0) size += " / " + Formatter.formatFileSize(MainActivity.this, entry.total);
-            status.setText(entry.statusLabel + "\n" + size);
+            status.setText(entry.statusLabel + " · " + size);
+            status.setTextColor(entry.isComplete() ? Ui.SUCCESS : Ui.MUTED);
             progress.setVisibility(entry.isActive() ? View.VISIBLE : View.GONE);
             progress.setIndeterminate(entry.total <= 0);
             if (entry.total > 0) progress.setProgress((int) Math.min(1000, entry.downloaded * 1000.0 / entry.total));
@@ -506,7 +641,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     }
 
     private void saveCopy(DownloadStore.Entry entry) {
-        exportId = entry.id; exportName = entry.name; exportPreparing = false;
+        exportId = entry.id; exportName = entry.displayName; exportPreparing = false;
         requestCopyPicker();
     }
     private void prepareCopy(DownloadStore.Entry entry) {
@@ -515,11 +650,11 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             return;
         }
         new AlertDialog.Builder(this).setTitle("Prepare for Azahar")
-                .setMessage("Prepare “" + entry.name + "” on this device. Your original stays in Downloads.\n\nChoose your games folder, such as ROMs/n3ds. Base games become playable .3ds files. Add the same folder as Azahar’s Games Folder once, then refresh its game list. Updates and DLC remain CIA files and require “Install CIA” in Azahar.\n\nPreparation needs temporary internal storage of about five times the download’s size, plus room for your saved copy.")
+                .setMessage("Prepare “" + entry.displayName + "” on this device. Your original stays in Downloads.\n\nChoose your games folder, such as ROMs/n3ds. Base games become playable .3ds files. Add the same folder as Azahar’s Games Folder once, then refresh its game list. Updates and DLC remain CIA files and require “Install CIA” in Azahar.\n\nPreparation needs temporary internal storage of about five times the download’s size, plus room for your saved copy.")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Choose games folder", (dialog, which) -> {
                     exportId = entry.id;
-                    exportName = entry.name;
+                    exportName = entry.displayName;
                     exportPreparing = true;
                     requestCopyPicker();
                 }).show();
@@ -596,6 +731,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         setupPanel.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
         for (int i = 0; i < tabButtons.size(); i++) tabButtons.get(i).setSelected(i == tab);
         if (tab == 1) refreshDownloads();
+        updateCompanion();
     }
     private void azaharHelp() {
         new AlertDialog.Builder(this).setTitle("Open in Azahar")
@@ -621,7 +757,8 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private void toast(String text) { Toast.makeText(this, text, Toast.LENGTH_LONG).show(); }
     private void navigateBack() {
         if (tab != 0) showTab(0);
-        else if (browser.canGoBack()) browser.goBack();
+        else if (!showingShelf && browser.canGoBack()) browser.goBack();
+        else if (!showingShelf) setShelfVisible(true);
         else super.onBackPressed();
     }
     @Override public void onBackPressed() { navigateBack(); }
@@ -687,9 +824,8 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     }
     private void updateCompanion() {
         if (companion != null) {
-            String summary = queueSummary;
-            if (PreparationService.isRunning(this)) summary += "\n" + PreparationService.status(this);
-            companion.update(currentTitle, summary);
+            companion.update(tab == 1 ? "Downloads" : tab == 2 ? "Setup"
+                    : showingShelf ? "Your next adventure" : currentTitle, queueSummary, latestEntries);
         }
     }
     @Override public void onDisplayAdded(int id) { configureCompanion(); }
@@ -710,6 +846,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         super.onSaveInstanceState(out);
         Bundle webState = new Bundle(); browser.saveState(webState); out.putBundle("browser", webState);
         out.putInt("tab", tab); out.putString("sourcePage", sourcePage);
+        out.putBoolean("showingShelf", showingShelf);
         out.putLong("exportId", exportId); out.putString("exportName", exportName);
         out.putBoolean("exportPreparing", exportPreparing);
     }
@@ -717,7 +854,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         downloadQueries.shutdownNow();
         handler.removeCallbacksAndMessages(null);
         if (companion != null) companion.dismiss();
-        if (browser != null) { browsePanel.removeView(browser); browser.destroy(); }
+        if (browser != null) { webPanel.removeView(browser); browser.destroy(); }
         super.onDestroy();
     }
 }

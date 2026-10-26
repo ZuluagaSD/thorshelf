@@ -13,6 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
+import org.json.JSONArray;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -85,6 +86,21 @@ public class PreparationUiTest {
         assertEquals("application/octet-stream", launch.intent.getType());
         assertTrue(launch.intent.hasCategory(Intent.CATEGORY_OPENABLE));
         assertNull(launch.intent.getParcelableExtra(DocumentsContract.EXTRA_INITIAL_URI));
+    }
+
+    @Test public void legacyDownloadUsesCleanNameForSaveCopy() throws Exception {
+        add("synthetic.cia", DownloadManager.STATUS_SUCCESSFUL);
+        android.content.SharedPreferences records = activity.getSharedPreferences("thorshelf_downloads_v1", 0);
+        JSONArray array = new JSONArray(records.getString("records", "[]"));
+        String original = "000400000011C400 Pokemon Omega Ruby (CTR-P-ECRA) (v3.3.0) (W).legit-a3bfbe6f17f0.cia";
+        array.getJSONObject(0).put("name", original);
+        records.edit().putString("records", array.toString()).commit();
+        render();
+        button("Save a copy").performClick();
+        shadowOf(Looper.getMainLooper()).idle();
+        ShadowActivity.IntentForResult launch = shadowOf(activity).getNextStartedActivityForResult();
+        assertEquals("Pokemon Omega Ruby (World).cia", launch.intent.getStringExtra(Intent.EXTRA_TITLE));
+        assertEquals(original, store.list().get(0).name);
     }
 
     @Test public void folderPickerStartsAtPreviouslySelectedGamesFolder() throws Exception {

@@ -103,7 +103,7 @@ public class MainActivitySmokeTest {
         List<DownloadStore.Entry> entries = new DownloadStore(activity).list();
         assertEquals(1, entries.size());
         assertTrue(entries.get(0).name.endsWith(".cia"));
-        assertTrue(entries.get(0).name.startsWith("00040000000A8500 Professor Layton"));
+        assertEquals("Professor Layton and the Miracle Mask (USA).cia", entries.get(0).name);
         assertTrue(shadowOf(shadowOf(manager).getRequest(entries.get(0).id))
                 .getDestination().getPath().endsWith(".cia"));
         assertTrue(button("Downloads").isSelected());

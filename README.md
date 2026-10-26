@@ -4,6 +4,10 @@ An unofficial Android companion for browsing hShop, managing downloads, and prep
 
 ThorShelf uses hShop's public website inside Android WebView. Search and categories are real hShop pages; the website's normal verification challenge remains interactive. Background downloads, preparation, and file exports use native Android services. No 3hs API credentials or 3hs source code are included.
 
+The interface takes its visual cues from the original 3DS eShop: warm ivory surfaces, orange controls, illustrated game shelves, visible controller focus, and an animated download parcel. Browse opens a native shelf with bundled editorial illustrations; its featured titles open real hShop searches so you can choose the appropriate version and region. Search and category buttons open the live catalog, and **Shelf** returns to the illustrated home without losing the browser session. The shelf adapts to landscape and portrait, and the current page is restored after rotation.
+
+Downloads show real transfer and preparation progress with actions for completed files. The companion display follows the current screen and queue, including paused, completed, and preparation states. Parcel animation respects Android's animation setting and stops when its screen is hidden. Design mockups and artwork prompts are under `design/mockups/eshop-modern/`; shelf illustrations are decorative artwork, not live catalog covers or gameplay screenshots.
+
 ## Install
 
 Install `app/build/outputs/apk/debug/app-debug.apk` on an Android 10 or newer ARM64 device (including the Thor) or an x86_64 emulator. Android may ask you to allow installation from the app opening the APK. This is a development build, signed with a local debug key.
@@ -11,7 +15,7 @@ Install `app/build/outputs/apk/debug/app-debug.apk` on an Android 10 or newer AR
 1. Open **Browse**, search for a title, and open its hShop page.
 2. Complete the site's verification if prompted, tap its download link, and confirm.
 3. Follow progress in **Downloads**. Files are stored in `Download/ThorShelf` in shared internal storage.
-4. On a completed CIA, choose **Prepare for Azahar**, then select your games folder, such as `ROMs/n3ds`. Base games are saved there as `… - Azahar.3ds`. Processing runs on Android and keeps the original download intact. Follow progress in Downloads or the notification.
+4. On a completed CIA, choose **Prepare for Azahar**, then select your games folder, such as `ROMs/n3ds`. Base games are saved there with clean names such as `Pokemon Omega Ruby (World).3ds`. Processing runs on Android and keeps the original download intact. Follow progress in Downloads or the notification.
 5. Set that folder as Azahar's **Games Folder** once (this is separate from its **User Folder**). When preparation finishes, choose **Open Azahar** and refresh the game list. Base games do not need CIA installation. Updates, DLC, and other title types remain prepared `.cia` files and require **Install CIA** inside Azahar.
 6. **Save a copy** remains available to copy the original file unchanged to another folder or SD card.
 
@@ -40,7 +44,9 @@ Install `app/build/outputs/apk/debug/app-debug.apk` on an Android 10 or newer AR
 
 - Wi-Fi only is enabled initially and applies to newly queued downloads.
 - Android Download Manager owns transfers, notifications, and automatic retries. Downloads can continue after ThorShelf closes. There is no manual pause/resume control.
-- Filenames are sanitized and receive a unique suffix to avoid overwriting existing downloads.
+- New downloads and prepared games use readable filenames: `Pokemon Omega Ruby (World).cia` and `Pokemon Omega Ruby (World).3ds`. Known title IDs, product codes, package tags, base-game package versions, and old random/Azahar suffixes are removed. Region, edition names, and update/DLC labels and versions are retained.
+- Repeated downloads receive simple numbered suffixes such as ` (2)`. Names are reserved against the saved queue and visible files; Android Download Manager also refuses to overwrite a destination if another process created it or scoped storage hid it from the app.
+- Older download records show clean names in ThorShelf, and **Save a copy** and **Prepare for Azahar** use clean output names. Existing files are not renamed automatically, so download references and existing library entries remain intact. Android’s document provider chooses a unique name when an exported filename already exists, and preparation reports that actual name.
 - hShop's standard and UTF-8 encoded download filenames are parsed consistently on every supported Android version, including responses that provide both `filename` and `filename*`. Opaque download addresses are accepted when the response identifies a supported file; HTML/error responses are rejected.
 - If a signed link expires or a transfer fails, use **Catalog page** to obtain a fresh download link.
 - Cancel removes the transfer and its partial file. Completed files can be managed with Android's file manager.
@@ -71,7 +77,9 @@ Java source is under `app/src/main/java/dev/thorshelf/app`. URL/filename policy,
 
 Automated checks cover hostile URLs, filename boundaries, search encoding, and the Android behaviors exercised by the tests in `app/src/test`. Lint checks the supported Android API levels. Robolectric is a simulated framework environment; it does not execute a real browser or replace hardware testing.
 
-ThorShelf **0.4.0** passes **107 unit/framework tests** and Android lint with **zero errors** (15 advisory warnings). Folder preparation tests cover `.3ds`/CIA routing, preserved originals, collision protection, interrupted jobs, partial-file cleanup, and folder selection across activity recreation. Twelve cartridge-validator tests check NCSD layout, partition indices and bounds, exact payload hashes, corruption, and cancellation. The existing CIA/CXI validators and download regressions remain covered, including hShop's combined `filename`/`filename*` header on Android API 29 and 35.
+The eShop-inspired UI was also checked in the Android 13 emulator at 1920 × 1080 landscape and 1080 × 1920 portrait, including 1.3× text size, shoulder-button tab navigation, the live hShop Games page, and the companion on a simulated secondary display. Actual app screenshots are in `design/screenshots/eshop-modern/`. Physical Thor display and controller validation remains a separate device check.
+
+ThorShelf **0.4.1** passes **155 unit/framework tests** and Android lint with **zero errors** (28 advisory warnings). Filename tests cover readable catalog names, old truncated names, update/DLC metadata, Unicode bounds, duplicate queue destinations, and existing file preservation. Folder preparation tests cover `.3ds`/CIA routing, preserved originals, collision protection, interrupted jobs, partial-file cleanup, and folder selection across activity recreation. The shelf regression tests cover live catalog routes, preserved browser sessions, rotation, selected tabs, and controller navigation on Android 10 and 15. Preparation-summary tests preserve error messages and clean legacy successful filenames. Twelve cartridge-validator tests check NCSD layout, partition indices and bounds, exact payload hashes, corruption, and cancellation. The existing CIA/CXI validators and download regressions remain covered, including hShop's combined `filename`/`filename*` header on Android API 29 and 35.
 
 All **ten native scenarios pass on the physical Android 13 ARM64 Thor** using locally generated synthetic files. They cover NCCH encryption, CIA plus NCCH encryption, sparse mixed content, plaintext and encrypted-to-cartridge conversion, rejected title types and existing outputs, corruption, malformed input, and cancellation. Cartridge cases verify real NCSD headers, sparse supplemental partitions, exact payload bytes and IDs, trimmed file size, source preservation, and scratch cleanup. No game files are included in these automated tests. The original six CIA scenarios previously passed on the Android 13 x86_64 emulator; the four new cartridge scenarios have been run on ARM64.
 
@@ -96,7 +104,7 @@ The **0.3.0 folder workflow** passed on the same physical Thor: **Prepare for Az
 
 The **0.4.0 `.3ds` workflow** also passed on the same Thor on 2026-10-26. Preparing the original Omega Ruby CIA into `ROMs/n3ds` produced a 1,898,569,728-byte cartridge. After refreshing Applications, Azahar 2126.2 displayed the `.3ds` filename and **NCSD** type, then launched it to the language-selection screen without installation. Every exported partition passed comparison against the verified CIA, the downloaded original retained its SHA-256, and preparation removed its private workspace. The previous CIA installation and CXI were retained. This is a discovery and boot check, not a full playthrough.
 
-**Azahar 2126.2 file-picker workaround:** selecting a Downloads-provider entry can fail with `File ! does not exist!` before the CIA is read. In **Install CIA file**, open the picker menu, choose **AYN Thor / internal storage**, and browse to the prepared `… - Azahar.cia` in the destination folder (for this check, `ROMs/n3ds`). This path worked on the Thor. Refresh **Applications** after installation. The original download shown in Recents is a separate file from the prepared copy.
+**Azahar 2126.2 file-picker workaround:** selecting a Downloads-provider entry can fail with `File ! does not exist!` before the CIA is read. In **Install CIA file**, open the picker menu, choose **AYN Thor / internal storage**, and browse to the prepared `.cia` in the destination folder (for this check, `ROMs/n3ds`). This path worked on the Thor. Refresh **Applications** after installation. The original download shown in Recents is a separate file from the prepared copy.
 
 Before calling this a stable release, verify on the Thor:
 

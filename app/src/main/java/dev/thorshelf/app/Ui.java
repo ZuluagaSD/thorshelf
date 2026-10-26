@@ -175,7 +175,7 @@ final class Ui {
 
     static ImageView logo(Context c, int sizeDp) {
         ImageView image = new ImageView(c);
-        image.setImageResource(R.drawable.ic_shelf);
+        image.setImageResource(R.drawable.thorshelf_icon_foreground);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         image.setLayoutParams(new LinearLayout.LayoutParams(dp(c, sizeDp), dp(c, sizeDp)));
         image.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);

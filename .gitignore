@@ -1,0 +1,14 @@
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+*.jks
+*.keystore
+.DS_Store
+.cxx/
+**/.cxx/
+.externalNativeBuild/
+**/.externalNativeBuild/
+/dist/
+/.design-preview/

@@ -1,0 +1,49 @@
+ThorShelf native preparation engine
+
+Source: https://github.com/Hinoaaaaaf212/cia3ds-android
+Pinned commit: bd34fc356f84fc655aa3b79964027b8f8eeeee99 (v0.2.9)
+Imported: 2026-10-26
+
+The native engine is built from vendored source; no prebuilt executable or library
+is downloaded at runtime. The CIA path uses ctrtool to extract/decrypt partitions
+and makerom to rebuild a CIA for subsequent full validation. Base games then use
+makerom's streamed CCI builder to produce a trimmed NCSD cartridge saved as .3ds.
+Java checks the cartridge layout and compares every partition's SHA-256 against
+the verified CIA before publishing it. Updates and DLC retain CIA output.
+Android arm64-v8a and x86_64 are built with NDK 28.2.13676358 and CMake 3.22.1.
+
+Components and licenses:
+- cia3ds-android JNI, metadata reader, AES adapter and patches: MIT
+  Copyright (c) 2026 cia3ds-android contributors; see native/LICENSE.
+- ctrtool and makerom, Project_CTR: MIT
+  Copyright (c) 2014 3DSGuy, 2014 applestash, 2015-2022 Jakcron.
+- libtoolchain, libfmt, libnintendo-n3ds, libbroadon-es: MIT
+- libyaml: MIT
+- mbedTLS (both vendored copies): Apache-2.0
+
+Original component license files are retained next to their sources and copied
+below in the APK asset THIRD_PARTY_NOTICES.txt. The upstream NOTICE is preserved
+in native/UPSTREAM-NOTICE for provenance, with these corrections: libblz has GPL
+source and is intentionally NOT shipped or linked in ThorShelf; ELF/code
+compression is unsupported and returns a clear error if invoked. CIA partition
+rebuilding does not require code compression.
+
+The bundled seeddb.bin was copied unmodified from the same pinned upstream
+commit. Upstream credits ihavamac and contributors for this community-maintained
+encryption-seed database. SHA-256:
+ccdcea5e4465194158737462436ec10ae48669dd961902282ac2861e260d03c9
+It is used locally only; ThorShelf does not contact seed/key servers.
+
+ThorShelf modifications to upstream:
+- Remove libblz and explicitly reject unused ELF/code compression paths.
+- Rename JNI entry points and omit the unused preview entry point.
+- Add scratch cleanup for all native exits, including failures.
+- Disable CIA's first-content-only already-decrypted shortcut; every content
+  is processed and the output is validated separately in Java.
+- Check extracted contents against original TMD SHA-256 before any patching or rebuilding.
+- Preserve already-plaintext NCCH bytes during cartridge packaging and pass
+  makerom -nomodtid so supplemental partition IDs and signatures are retained.
+- Remove native tool output from logcat (it may contain cryptographic values).
+- Rename makerom version macros that collided with title-version array indexes.
+- Use the NDK lld linker for Clang LTO with CMake 3.22.
+

@@ -130,6 +130,10 @@ public class ExportServiceTest {
         File activeOutput = documents.files.get(activeDestination);
         Uri unusedDestination = newDestination("unused");
         File unusedOutput = documents.files.get(unusedDestination);
+        Uri existingDestination = newDestination("existing-busy");
+        File existingOutput = documents.files.get(existingDestination);
+        byte[] existingBytes = new byte[]{7, 8, 9};
+        Files.write(existingOutput.toPath(), existingBytes);
         CountDownLatch reading = new CountDownLatch(1);
         unblockCopy = new CountDownLatch(1);
         shadowOf(app.getContentResolver()).registerInputStreamSupplier(sourceUri, () -> {
@@ -157,6 +161,12 @@ public class ExportServiceTest {
         } catch (IllegalStateException expected) {
             assertTrue(expected.getMessage().contains("already running"));
         }
+        try {
+            ExportService.startNds(app, downloadId, existingDestination, "existing.nds");
+            fail("Expected a busy export to be rejected");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("already running"));
+        }
         await(() -> !unusedOutput.exists());
         assertTrue(activeOutput.exists());
         assertFalse(documents.deleted.containsKey(activeDestination));
@@ -164,6 +174,155 @@ public class ExportServiceTest {
         awaitFinished();
         assertArrayEquals(sourceBytes, Files.readAllBytes(activeOutput.toPath()));
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        assertArrayEquals(existingBytes, Files.readAllBytes(existingOutput.toPath()));
+        assertFalse(documents.deleted.containsKey(existingDestination));
+    }
+
+    @Test public void ndsExportExtractsTrackedZipAndKeepsOriginalArchive() throws Exception {
+        byte[] rom = sourceBytes.clone();
+        replaceSource("synthetic.zip", NdsRomExporterTest.zip(new String[]{"demo/README.txt", "demo/Demo.nds"},
+                new byte[][]{new byte[]{1, 2, 3}, rom}, false));
+        Uri destination = newDestination("nds-extracted");
+        File output = documents.files.get(destination);
+        launchNds(destination, "synthetic.nds");
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export complete:"));
+        assertArrayEquals(rom, Files.readAllBytes(output.toPath()));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        assertTrue(documents.deleted.isEmpty());
+    }
+
+    @Test public void ndsExportCopiesDirectRom() throws Exception {
+        replaceSource("synthetic.nds", sourceBytes);
+        Uri destination = newDestination("nds-direct");
+        File output = documents.files.get(destination);
+        launchNds(destination, "synthetic.nds");
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export complete:"));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(output.toPath()));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void invalidMultiRomArchiveRemovesPartialNdsDestination() throws Exception {
+        replaceSource("synthetic.zip", NdsRomExporterTest.zip(new String[]{"one.nds", "two.nds"},
+                new byte[][]{sourceBytes, new byte[]{1, 2, 3}}, false));
+        Uri destination = newDestination("nds-multiple");
+        File output = documents.files.get(destination);
+        launchNds(destination, "synthetic.nds");
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).contains("multiple DS ROMs"));
+        assertFalse(output.exists());
+        assertTrue(documents.deleted.containsKey(destination));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void ndsExportDoesNotTrustCallerNameToReclassifyCia() throws Exception {
+        replaceSource("synthetic.cia", sourceBytes);
+        Uri destination = newDestination("nds-wrong-type");
+        File output = documents.files.get(destination);
+        launchNds(destination, "renamed.nds");
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).contains("completed .nds"));
+        assertFalse(output.exists());
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void ndsExportNeverOverwritesExistingDestination() throws Exception {
+        replaceSource("synthetic.nds", sourceBytes);
+        Uri destination = newDestination("nds-existing");
+        File output = documents.files.get(destination);
+        byte[] existing = new byte[]{9, 8, 7};
+        Files.write(output.toPath(), existing);
+        launchNds(destination, "synthetic.nds");
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).contains("already contains data"));
+        assertArrayEquals(existing, Files.readAllBytes(output.toPath()));
+        assertFalse(documents.deleted.containsKey(destination));
+    }
+
+    @Test public void recoveryPreservesAnUnverifiedDestinationWithExistingContent() throws Exception {
+        Uri destination = newDestination("recovery-existing");
+        File output = documents.files.get(destination);
+        byte[] existing = new byte[]{5, 6, 7};
+        Files.write(output.toPath(), existing);
+        app.getSharedPreferences("export_status", Context.MODE_PRIVATE).edit()
+                .putBoolean("in_progress", true).putString("destination", destination.toString())
+                .putBoolean("destination_owned", false).commit();
+        ExportService.status(app);
+        awaitFinished();
+
+        assertArrayEquals(existing, Files.readAllBytes(output.toPath()));
+        assertFalse(documents.deleted.containsKey(destination));
+    }
+
+    @Test public void recoveryRemovesOnlyAPartialDocumentOwnedByTheExport() throws Exception {
+        Uri destination = newDestination("recovery-partial");
+        File output = documents.files.get(destination);
+        Files.write(output.toPath(), new byte[]{5, 6, 7});
+        app.getSharedPreferences("export_status", Context.MODE_PRIVATE).edit()
+                .putBoolean("in_progress", true).putString("destination", destination.toString())
+                .putBoolean("destination_owned", true).commit();
+        ExportService.status(app);
+        awaitFinished();
+
+        assertFalse(output.exists());
+        assertTrue(documents.deleted.containsKey(destination));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void cancelledNdsExportDeletesPartialDocumentAndKeepsArchive() throws Exception {
+        replaceSource("synthetic.zip", NdsRomExporterTest.zip(new String[]{"demo.nds"},
+                new byte[][]{sourceBytes}, false));
+        Uri destination = newDestination("nds-cancelled");
+        File output = documents.files.get(destination);
+        CountDownLatch reading = new CountDownLatch(1);
+        unblockCopy = new CountDownLatch(1);
+        shadowOf(app.getContentResolver()).registerInputStreamSupplier(sourceUri, () -> {
+            try {
+                return new FilterInputStream(Files.newInputStream(sourceFile.toPath())) {
+                    @Override public int read(byte[] buffer, int offset, int length) throws IOException {
+                        reading.countDown();
+                        try {
+                            if (!unblockCopy.await(5, TimeUnit.SECONDS)) throw new IOException("Test gate timed out");
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException(e);
+                        }
+                        return super.read(buffer, offset, length);
+                    }
+                };
+            } catch (IOException e) { throw new IllegalStateException(e); }
+        });
+        launchNds(destination, "synthetic.nds");
+        assertTrue("Export never reached its source stream", reading.await(5, TimeUnit.SECONDS));
+        service.destroy();
+        service = null;
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).contains("interrupted"));
+        assertFalse(output.exists());
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    private void replaceSource(String name, byte[] bytes) throws IOException {
+        sourceBytes = bytes;
+        Files.write(sourceFile.toPath(), bytes);
+        DownloadManager manager = app.getSystemService(DownloadManager.class);
+        downloadId = new DownloadStore(app).enqueue("https://download2.erista.me/test", name,
+                null, null, "https://hshop.erista.me/t/42", true);
+        shadowOf(shadowOf(manager).getRequest(downloadId)).setStatus(DownloadManager.STATUS_SUCCESSFUL);
+        sourceUri = manager.getUriForDownloadedFile(downloadId);
+        FileProvider downloads = registerProvider(sourceUri.getAuthority());
+        downloads.files.put(sourceUri, sourceFile);
+        shadowOf(app.getContentResolver()).registerInputStreamSupplier(sourceUri, () -> {
+            try { return Files.newInputStream(sourceFile.toPath()); }
+            catch (IOException e) { throw new IllegalStateException(e); }
+        });
     }
 
     private Uri newDestination(String id) throws IOException {
@@ -179,6 +338,15 @@ public class ExportServiceTest {
 
     private void launch(Uri destination) {
         ExportService.start(app, downloadId, destination, "synthetic.bin");
+        launchPending();
+    }
+
+    private void launchNds(Uri destination, String name) {
+        ExportService.startNds(app, downloadId, destination, name);
+        launchPending();
+    }
+
+    private void launchPending() {
         Intent intent = shadowOf(app).getNextStartedService();
         assertNotNull(intent);
         service = Robolectric.buildService(ExportService.class, intent).create().startCommand(0, 1);

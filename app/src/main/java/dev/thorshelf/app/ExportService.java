@@ -45,6 +45,15 @@ public final class ExportService extends Service {
 
     /** The destination must be a newly created SAF document, never an existing library file. */
     public static void start(Context context, long downloadId, Uri destination, String name) {
+        start(context, downloadId, destination, name, false);
+    }
+
+    /** Exports an original .nds file, extracting exactly one ROM when its download is a ZIP. */
+    public static void startNds(Context context, long downloadId, Uri destination, String name) {
+        start(context, downloadId, destination, name, true);
+    }
+
+    private static void start(Context context, long downloadId, Uri destination, String name, boolean nds) {
         Context app = context.getApplicationContext();
         if (app == null) app = context;
         if (downloadId <= 0 || destination == null || !"content".equals(destination.getScheme())) {
@@ -64,6 +73,7 @@ public final class ExportService extends Service {
                     .putString("status", "Export queued: " + safeName)
                     .putBoolean("in_progress", true)
                     .putString("destination", destination.toString())
+                    .putBoolean("destination_owned", false)
                     .putString("token", token).commit();
             if (!saved) {
                 active = false;
@@ -76,6 +86,7 @@ public final class ExportService extends Service {
                 .putExtra("download_id", downloadId)
                 .putExtra("destination", destination.toString())
                 .putExtra("name", safeName)
+                .putExtra("nds", nds)
                 .putExtra("token", token);
         try {
             app.startForegroundService(intent);
@@ -100,14 +111,15 @@ public final class ExportService extends Service {
             if (prefs.getBoolean("in_progress", false) && !active && !recoveryRunning) {
                 recoveryRunning = true;
                 String savedDestination = prefs.getString("destination", "");
+                boolean owned = prefs.getBoolean("destination_owned", true);
                 prefs.edit().putString("status", "Export was interrupted. Cleaning up its partial file…").commit();
                 new Thread(() -> {
                     Uri destination = parseDestination(savedDestination);
-                    boolean deleted = deleteDocument(app, destination);
+                    boolean deleted = owned ? deleteDocument(app, destination) : deleteEmptyDocument(app, destination);
                     releaseDocumentGrant(app, destination);
                     synchronized (STATE_LOCK) {
                         prefs.edit().putBoolean("in_progress", false)
-                                .remove("destination").remove("token")
+                                .remove("destination").remove("destination_owned").remove("token")
                                 .putString("status", deleted
                                         ? "Export was interrupted. The original download is safe; export it again."
                                         : "Export was interrupted. The original is safe; remove the partial destination file before trying again.")
@@ -144,7 +156,8 @@ public final class ExportService extends Service {
             if (!current.token.equals(token)) deleteUnusedDocument(this, destination);
             return START_NOT_STICKY;
         }
-        CopyJob job = new CopyJob(startId, downloadId, destination, name, token);
+        CopyJob job = new CopyJob(startId, downloadId, destination, name, token,
+                intent.getBooleanExtra("nds", false));
         current = job;
         synchronized (STATE_LOCK) {
             active = true;
@@ -167,44 +180,86 @@ public final class ExportService extends Service {
         String message = "Export failed. Check the destination's available space and access, then try again.";
         try {
             if (job.cancelled) return;
-            Uri source = new DownloadStore(this).completedUri(job.downloadId);
+            ContentResolver resolver = getContentResolver();
+            // ACTION_CREATE_DOCUMENT should produce an empty document; never replace existing content.
+            long destinationSize = sizeOf(resolver, job.destination);
+            job.destinationVerified = true;
+            if (destinationSize > 0 || job.nds && destinationSize < 0) {
+                job.mayDeleteDestination = false;
+                message = destinationSize > 0
+                        ? "The chosen destination already contains data. Choose a new filename for the export."
+                        : "Could not confirm that the destination is empty. Choose a new file with another document provider.";
+                return;
+            }
+            job.mayDeleteDestination = true;
+            DownloadStore store = new DownloadStore(this);
+            Uri source = store.completedUri(job.downloadId);
             if (source == null) {
                 message = "The source download is missing or incomplete. Download it again before exporting.";
                 return;
             }
-            ContentResolver resolver = getContentResolver();
-            long total = sizeOf(resolver, source);
-            // ACTION_CREATE_DOCUMENT should produce an empty document; never replace existing content.
-            if (sizeOf(resolver, job.destination) > 0) {
+            if (source.equals(job.destination)) {
                 job.mayDeleteDestination = false;
-                message = "The chosen destination already contains data. Choose a new filename for the export.";
+                message = "The export destination must differ from the original download.";
                 return;
             }
+            String sourceName = null;
+            if (job.nds) {
+                for (DownloadStore.Entry entry : store.list()) {
+                    if (entry.id == job.downloadId && entry.isComplete()) sourceName = entry.name;
+                }
+                // Use the saved source name, never the display name supplied by the picker caller.
+                if (sourceName == null || !(sourceName.toLowerCase(java.util.Locale.ROOT).endsWith(".nds")
+                        || sourceName.toLowerCase(java.util.Locale.ROOT).endsWith(".zip"))) {
+                    message = "Choose a completed .nds download or a ZIP containing one DS ROM.";
+                    return;
+                }
+            }
+            long total = sizeOf(resolver, source);
             if (job.cancelled) return;
             job.input = resolver.openInputStream(source);
             if (job.input == null) throw new IOException();
             if (job.cancelled) return;
+            // Persist ownership only after confirming an empty destination distinct from the
+            // tracked source. Recovery can now remove our partial output if this process dies.
+            if (!preferences(this).edit().putBoolean("destination_owned", true).commit()) {
+                throw new IOException("Could not save export cleanup state.");
+            }
             job.output = resolver.openOutputStream(job.destination, "wt");
             if (job.output == null) throw new IOException();
-            byte[] buffer = new byte[128 * 1024];
-            long copied = 0;
-            long lastUpdate = 0;
-            int count;
-            while (!job.cancelled && !Thread.currentThread().isInterrupted()
-                    && (count = job.input.read(buffer)) != -1) {
-                job.output.write(buffer, 0, count);
-                copied += count;
-                long now = SystemClock.elapsedRealtime();
-                if (now - lastUpdate >= 500) {
-                    progress(job, copied, total);
-                    lastUpdate = now;
+            if (job.nds) {
+                NdsRomExporter.export(job.input, job.output, sourceName, total, new NdsRomExporter.Progress() {
+                    long lastUpdate;
+                    @Override public boolean isCancelled() { return job.cancelled; }
+                    @Override public void onProgress(long copied, long expected) {
+                        long now = SystemClock.elapsedRealtime();
+                        if (now - lastUpdate >= 500) {
+                            progress(job, copied, expected);
+                            lastUpdate = now;
+                        }
+                    }
+                });
+            } else {
+                byte[] buffer = new byte[128 * 1024];
+                long copied = 0;
+                long lastUpdate = 0;
+                int count;
+                while (!job.cancelled && !Thread.currentThread().isInterrupted()
+                        && (count = job.input.read(buffer)) != -1) {
+                    job.output.write(buffer, 0, count);
+                    copied += count;
+                    long now = SystemClock.elapsedRealtime();
+                    if (now - lastUpdate >= 500) {
+                        progress(job, copied, total);
+                        lastUpdate = now;
+                    }
+                }
+                if (total >= 0 && copied != total && !job.cancelled) {
+                    message = "The copy ended before the whole file was transferred. Check storage and export it again.";
+                    return;
                 }
             }
             if (job.cancelled || Thread.currentThread().isInterrupted()) return;
-            if (total >= 0 && copied != total) {
-                message = "The copy ended before the whole file was transferred. Check storage and export it again.";
-                return;
-            }
             job.output.flush();
             job.output.close();
             job.output = null;
@@ -214,6 +269,8 @@ public final class ExportService extends Service {
             message = "Export complete: " + job.name;
         } catch (SecurityException ignored) {
             message = "Access to the export destination was lost. Choose the destination again.";
+        } catch (NdsRomExporter.InvalidRomException invalid) {
+            message = invalid.getMessage();
         } catch (IOException | RuntimeException ignored) {
             // Provider exceptions can contain private paths; use the actionable message above.
         } finally {
@@ -224,7 +281,7 @@ public final class ExportService extends Service {
     }
 
     private void progress(CopyJob job, long copied, long total) {
-        String message = "Copying " + job.name + " · " + bytes(copied)
+        String message = (job.nds ? "Exporting DS ROM " : "Copying ") + job.name + " · " + bytes(copied)
                 + (total > 0 ? " / " + bytes(total) : "");
         synchronized (STATE_LOCK) {
             if (job.finished.get() || !job.token.equals(activeToken)) return;
@@ -243,14 +300,17 @@ public final class ExportService extends Service {
     private void finish(CopyJob job, boolean success, String message) {
         if (!job.finished.compareAndSet(false, true)) return;
         success = success && !job.cancelled;
-        if (!success && job.mayDeleteDestination && !deleteDocument(this, job.destination)) {
+        boolean cleaned = success || (job.destinationVerified
+                ? !job.mayDeleteDestination || deleteDocument(this, job.destination)
+                : deleteEmptyDocument(this, job.destination));
+        if (!cleaned) {
             message += " Remove the partial destination file manually. The original download is safe.";
         }
         releaseDocumentGrant(this, job.destination);
         synchronized (STATE_LOCK) {
             if (job.token.equals(activeToken)) {
                 preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
-                        .remove("destination").remove("token").commit();
+                        .remove("destination").remove("destination_owned").remove("token").commit();
                 active = false;
                 activeToken = null;
             }
@@ -345,6 +405,12 @@ public final class ExportService extends Service {
         }
     }
 
+    private static boolean deleteEmptyDocument(Context context, Uri uri) {
+        // A request may fail before the worker validates its document. Preserve anything
+        // that already contains data (or whose size cannot be established).
+        return uri == null || sizeOf(context.getContentResolver(), uri) != 0 || deleteDocument(context, uri);
+    }
+
     private static void deleteUnusedDocument(Context context, Uri uri) {
         Context application = context.getApplicationContext();
         Context app = application == null ? context : application;
@@ -354,7 +420,7 @@ public final class ExportService extends Service {
                     && uri.toString().equals(preferences(app).getString("destination", ""))) return;
         }
         new Thread(() -> {
-            deleteDocument(app, uri);
+            deleteEmptyDocument(app, uri);
             releaseDocumentGrant(app, uri);
         }, "thorshelf-export-unused").start();
     }
@@ -400,21 +466,24 @@ public final class ExportService extends Service {
         final Uri destination;
         final String name;
         final String token;
+        final boolean nds;
         final AtomicBoolean finished = new AtomicBoolean();
         final AtomicBoolean started = new AtomicBoolean();
         volatile Future<?> future;
         volatile InputStream input;
         volatile OutputStream output;
         volatile boolean cancelled;
-        volatile boolean mayDeleteDestination = true;
+        volatile boolean destinationVerified;
+        volatile boolean mayDeleteDestination;
         volatile String cancelMessage = "Export was interrupted. The original download is safe; export it again.";
 
-        CopyJob(int startId, long downloadId, Uri destination, String name, String token) {
+        CopyJob(int startId, long downloadId, Uri destination, String name, String token, boolean nds) {
             this.startId = startId;
             this.downloadId = downloadId;
             this.destination = destination;
             this.name = name;
             this.token = token;
+            this.nds = nds;
         }
     }
 }

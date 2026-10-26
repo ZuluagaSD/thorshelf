@@ -3,13 +3,11 @@ package dev.thorshelf.app;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -59,8 +57,7 @@ final class BrowseHomeView extends ScrollView {
         body.removeAllViews();
         int side = Ui.dp(context, wide ? 24 : 16);
         body.setPadding(side, Ui.dp(context, 6), side, Ui.dp(context, 20));
-        body.addView(hero(), new LinearLayout.LayoutParams(-1, -2));
-        body.addView(categories(), spaced(-1, -2, compact ? 8 : 10));
+        body.addView(categories(), new LinearLayout.LayoutParams(-1, -2));
 
         String[] labels = {"Animal Crossing", "Mario Kart 7", "Professor Layton", "A Link Between Worlds"};
         String[] titles = {"Animal Crossing - New Leaf", "Mario Kart 7",
@@ -81,57 +78,6 @@ final class BrowseHomeView extends ScrollView {
         }
         TextView note = Ui.text(context, "Illustrated picks · Choose a title to find its versions on hShop.", 12, Ui.MUTED);
         body.addView(note, spaced(-1, -2, 10));
-    }
-
-    private View hero() {
-        Context context = getContext();
-        LinearLayout copy = Ui.column(context);
-        copy.setGravity(Gravity.CENTER_VERTICAL);
-        Ui.pad(copy, compact ? 12 : wide ? 16 : 20);
-        TextView eyebrow = Ui.text(context, "ON THE SHELF", compact ? 10 : 11, Color.rgb(159, 89, 34));
-        eyebrow.setPadding(0, 0, 0, Ui.dp(context, 3));
-        eyebrow.setLetterSpacing(0.12f);
-        eyebrow.setTypeface(null, Typeface.BOLD);
-        copy.addView(eyebrow);
-        TextView title = Ui.text(context, "Pokémon Omega Ruby", compact ? 24 : wide ? 28 : 26, Ui.TEXT);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setLineSpacing(0, 1.02f);
-        copy.addView(title);
-        if (!compact) copy.addView(Ui.text(context, "A little nostalgia. A new adventure.", 14, Ui.MUTED));
-        Button open = Ui.primaryButton(context, "View game", () -> openTitle("Pokemon Omega Ruby"));
-        open.setContentDescription("View Pokémon Omega Ruby in the catalog");
-        copy.addView(open, spaced(-2, -2, 6));
-
-        ImageView artwork = GameArtwork.image(context, R.drawable.shelf_hero, wide ? 960 : 400);
-        artwork.setBackgroundColor(PEACH);
-        artwork.setClipToOutline(false);
-        if (wide) {
-            LinearLayout copyRow = Ui.row(context);
-            copyRow.addView(copy, new LinearLayout.LayoutParams(0, -2, 0.55f));
-            View breathingRoom = new View(context);
-            breathingRoom.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            copyRow.addView(breathingRoom, new LinearLayout.LayoutParams(0, 1, 0.45f));
-            FrameLayout hero = new HeroFrame(context, copyRow, compact ? 130 : 180);
-            hero.setBackground(Ui.rounded(context, PEACH, 0));
-            hero.setClipToOutline(true);
-            // Keep the complete character visible in a short banner; the pale image edge
-            // blends into the matching surface beneath the overlaid title.
-            artwork.setScaleType(ImageView.ScaleType.FIT_END);
-            hero.addView(artwork, new FrameLayout.LayoutParams(-1, -1));
-            View fade = new View(context);
-            fade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            fade.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                    new int[] {PEACH, Color.argb(217, 255, 235, 215), Color.argb(0, 255, 235, 215)}));
-            hero.addView(fade, new FrameLayout.LayoutParams(-1, -1));
-            hero.addView(copyRow, new FrameLayout.LayoutParams(-1, -1));
-            return hero;
-        }
-        LinearLayout hero = Ui.column(context);
-        hero.setBackground(Ui.rounded(context, PEACH, 0));
-        hero.setClipToOutline(true);
-        hero.addView(artwork, new LinearLayout.LayoutParams(-1, Ui.dp(context, 170)));
-        hero.addView(copy, new LinearLayout.LayoutParams(-1, -2));
-        return hero;
     }
 
     private View categories() {
@@ -193,27 +139,6 @@ final class BrowseHomeView extends ScrollView {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width, height);
         params.topMargin = Ui.dp(getContext(), topDp);
         return params;
-    }
-
-    private static final class HeroFrame extends FrameLayout {
-        private final View copy;
-        private final int minimumHeightDp;
-
-        HeroFrame(Context context, View copy, int minimumHeightDp) {
-            super(context);
-            this.copy = copy;
-            this.minimumHeightDp = minimumHeightDp;
-        }
-
-        @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            // The title and action determine the banner height, including at larger font
-            // scales. A background bitmap's intrinsic dimensions must not size the card.
-            copy.measure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            int desiredHeight = Math.max(Ui.dp(getContext(), minimumHeightDp), copy.getMeasuredHeight());
-            int height = View.resolveSize(desiredHeight, heightMeasureSpec);
-            super.onMeasure(widthMeasureSpec,
-                    View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
-        }
     }
 
     private static final class ShelfImageView extends ImageView {

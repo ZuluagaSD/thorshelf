@@ -44,6 +44,7 @@ public final class PreparationService extends Service {
     private static final long STORAGE_RESERVE = 64L * 1024 * 1024;
     private static volatile boolean active;
     private static volatile boolean recoveryRunning;
+    private static boolean deletingOriginal;
     private static String activeToken;
     private static String cancelledToken;
 
@@ -85,6 +86,9 @@ public final class PreparationService extends Service {
         String token = UUID.randomUUID().toString();
         String safeName = GameFilename.clean(name);
         synchronized (STATE_LOCK) {
+            if (deletingOriginal) {
+                throw new IllegalStateException("Wait for the original download to finish deleting before preparing another file.");
+            }
             if (active || recoveryRunning) {
                 throw new IllegalStateException("A CIA is already being prepared or cleaned up. Wait for it to finish.");
             }
@@ -92,6 +96,7 @@ public final class PreparationService extends Service {
             activeToken = token;
             cancelledToken = null;
             if (!preferences(app).edit().putString("status", "Preparation queued: " + safeName)
+                    .putLong("download_id", downloadId)
                     .putBoolean("in_progress", true).putBoolean("ready", false).putInt("progress", 0)
                     .putBoolean("destination_owned", false)
                     .remove("destination").putString("folder", folder.toString()).putString("token", token).commit()) {
@@ -150,8 +155,39 @@ public final class PreparationService extends Service {
         synchronized (STATE_LOCK) { return active || recoveryRunning; }
     }
 
+    /** Deletes only a recorded source after its saved prepared copy has been checked. */
+    public static void deleteOriginal(Context context, long downloadId) {
+        Context app = application(context);
+        status(app);
+        ExportService.status(app);
+        synchronized (STATE_LOCK) {
+            if (deletingOriginal) {
+                throw new IllegalStateException("An original download is already being deleted. Wait for it to finish.");
+            }
+            if (active || recoveryRunning || preferences(app).getBoolean("in_progress", false)) {
+                throw new IllegalStateException("Wait for preparation to finish before deleting an original download.");
+            }
+            if (app.getSharedPreferences("export_status", Context.MODE_PRIVATE).getBoolean("in_progress", false)) {
+                throw new IllegalStateException("Wait for the copy to finish before deleting an original download.");
+            }
+            // Reserve deletion before releasing the lock. A new preparation cannot start while
+            // a provider checks the copy or removes its source, and UI status reads stay responsive.
+            deletingOriginal = true;
+        }
+        try {
+            new DownloadStore(app).deletePreparedOriginal(downloadId);
+        } finally {
+            synchronized (STATE_LOCK) { deletingOriginal = false; }
+        }
+    }
+
     public static int progress(Context context) {
         return preferences(context).getInt("progress", 0);
+    }
+
+    /** Download associated with the current or most recent preparation result. */
+    public static long downloadId(Context context) {
+        return preferences(context).getLong("download_id", -1);
     }
 
     public static boolean isReady(Context context) {
@@ -367,22 +403,47 @@ public final class PreparationService extends Service {
 
     private void finish(PreparationJob job, boolean success, String message) {
         if (!job.finished.compareAndSet(false, true)) return;
-        success = success && !cancelled(job);
-        if (!success && job.mayDeleteDestination
-                && !deleteDocument(this, job.destination)) {
-            message += " Remove the partial destination file manually. The original download is safe.";
-        }
-        if (!deleteTree(job.directory)) message += " Some temporary files could not be removed.";
-        synchronized (STATE_LOCK) {
-            if (job.token.equals(activeToken)) {
-                preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
-                        .putBoolean("ready", success).putInt("progress", success ? 100 : 0)
-                        .putBoolean("requires_install", job.requiresInstall)
-                        .remove("destination").remove("destination_owned").remove("folder").remove("token").commit();
-                active = false;
-                activeToken = null;
-                cancelledToken = null;
+        boolean workspaceCleaned = deleteTree(job.directory);
+        boolean destinationHandled = !job.mayDeleteDestination;
+        boolean destinationDeleted = true;
+        while (true) {
+            synchronized (STATE_LOCK) {
+                // A cancellation during cleanup must be observed before recording success.
+                boolean wasCancelled = cancelled(job);
+                success = success && !wasCancelled;
+                if (success || destinationHandled) {
+                    if (wasCancelled) message = job.cancelMessage;
+                    if (!destinationDeleted) message += " Remove the partial destination file manually. The original download is safe.";
+                    if (!workspaceCleaned) message += " Some temporary files could not be removed.";
+                    if (job.token.equals(activeToken)) {
+                        boolean finalized = preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
+                                .putBoolean("ready", success).putInt("progress", success ? 100 : 0)
+                                .putBoolean("requires_install", job.requiresInstall)
+                                .remove("destination").remove("destination_owned").remove("folder").remove("token").commit();
+                        // Finalize recovery state before exposing Delete original. Otherwise a process
+                        // interruption could recover and remove a copy already recorded as prepared.
+                        if (success) {
+                            boolean recorded = false;
+                            if (finalized) {
+                                try { recorded = new DownloadStore(this).markPrepared(job.downloadId, job.destination); }
+                                catch (RuntimeException ignored) { }
+                            }
+                            if (!recorded) {
+                                preferences(this).edit().putString("status", message
+                                        + " Could not save the preparation record; keep the original download.").commit();
+                            }
+                        }
+                        active = false;
+                        activeToken = null;
+                        cancelledToken = null;
+                    }
+                    break;
+                }
             }
+            // Providers can be slow. Keep preparation active, but never hold the UI's status
+            // lock while asking the provider to clean up an unsuccessful destination.
+            destinationDeleted = deleteDocument(this, job.destination);
+            destinationHandled = true;
         }
         main.post(() -> {
             if (current == job) {

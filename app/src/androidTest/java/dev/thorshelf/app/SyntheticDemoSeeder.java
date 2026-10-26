@@ -14,7 +14,7 @@ import java.nio.file.Files;
 
 /** Explicit emulator-preview setup only; this class never ships in the application APK. */
 final class SyntheticDemoSeeder {
-    private static final String NAME = "Synthetic preparation demo (not a game).cia";
+    private static final String NAME = "Synthetic cartridge demo (not a game).cia";
 
     private SyntheticDemoSeeder() { }
 
@@ -31,7 +31,7 @@ final class SyntheticDemoSeeder {
             throw new IOException("Cannot create the synthetic demo folder.");
         }
         File file = new File(directory, "synthetic-preparation-demo-" + System.currentTimeMillis() + ".cia");
-        byte[] fixture = SyntheticCia.create(true, false);
+        byte[] fixture = SyntheticCia.createCartridge(true);
         Files.write(file.toPath(), fixture);
         DownloadManager manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
         long id = -1;

@@ -5,20 +5,45 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.LruCache;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.text.Normalizer;
 import java.util.Locale;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
-/** Bundled editorial illustrations, with lightweight initial tiles for all other titles. */
+/** Catalog artwork with bundled illustrations and initials available immediately as fallbacks. */
 final class GameArtwork {
     private static final LruCache<String, Bitmap> BITMAPS = new LruCache<String, Bitmap>(12 * 1024 * 1024) {
         @Override protected int sizeOf(String key, Bitmap value) { return value.getAllocationByteCount(); }
     };
+    private static final LruCache<String, Bitmap> REMOTE_BITMAPS = new LruCache<String, Bitmap>(8 * 1024 * 1024) {
+        @Override protected int sizeOf(String key, Bitmap value) { return value.getAllocationByteCount(); }
+    };
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    private static final ThreadPoolExecutor ARTWORK_WORKERS = new ThreadPoolExecutor(
+            2, 2, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), runnable -> {
+                Thread worker = new Thread(runnable, "catalog-artwork");
+                worker.setDaemon(true);
+                return worker;
+            });
+    static Supplier<ArtworkClient> clientFactory = ArtworkClient::new;
+
+    static {
+        ARTWORK_WORKERS.allowCoreThreadTimeOut(true);
+    }
     private static final int[] TILE_COLORS = {
             Color.rgb(255, 231, 207), Color.rgb(220, 238, 220), Color.rgb(221, 234, 247),
             Color.rgb(235, 224, 244), Color.rgb(248, 229, 200)
@@ -53,6 +78,123 @@ final class GameArtwork {
         view.setMinimumWidth(Ui.dp(context, sizeDp));
         view.setMinimumHeight(Ui.dp(context, sizeDp));
         return view;
+    }
+
+    /** Remote metadata is optional: an unavailable image must never hide the title's fallback. */
+    static View thumbnail(Context context, String title, String imageUrl, int sizeDp) {
+        if (!ArtworkPolicy.isAllowed(imageUrl)) return thumbnail(context, title, sizeDp);
+        return new RemoteThumbnail(context, title, imageUrl, sizeDp);
+    }
+
+    static void clearRemoteCacheForTests() {
+        REMOTE_BITMAPS.evictAll();
+    }
+
+    private static final class RemoteThumbnail extends FrameLayout {
+        private final String imageUrl;
+        private final int pixels;
+        private final String cacheKey;
+        private int generation;
+        private boolean loaded;
+        private ArtworkRequest request;
+        private Future<?> pending;
+
+        RemoteThumbnail(Context context, String title, String imageUrl, int sizeDp) {
+            super(context);
+            this.imageUrl = imageUrl;
+            int edge = 64;
+            while (edge < Ui.dp(context, sizeDp) && edge < 512) edge *= 2;
+            pixels = edge;
+            cacheKey = pixels + ":" + imageUrl;
+            addView(thumbnail(context, title, sizeDp), new LayoutParams(
+                    LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+            setMinimumWidth(Ui.dp(context, sizeDp));
+            setMinimumHeight(Ui.dp(context, sizeDp));
+            setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            setFocusable(false);
+            Bitmap cached = REMOTE_BITMAPS.get(cacheKey);
+            if (cached != null) show(cached);
+        }
+
+        @Override protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            if (loaded || request != null) return;
+            Bitmap cached = REMOTE_BITMAPS.get(cacheKey);
+            if (cached != null) {
+                show(cached);
+                return;
+            }
+            request = new ArtworkRequest(this, ++generation, imageUrl, pixels, cacheKey, clientFactory);
+            pending = ARTWORK_WORKERS.submit(request);
+        }
+
+        @Override protected void onDetachedFromWindow() {
+            generation++;
+            if (request != null) request.cancelled = true;
+            if (pending != null) {
+                pending.cancel(true);
+                if (pending instanceof Runnable) ARTWORK_WORKERS.remove((Runnable) pending);
+            }
+            request = null;
+            pending = null;
+            super.onDetachedFromWindow();
+        }
+
+        void complete(int requestGeneration, Bitmap bitmap) {
+            if (!isAttachedToWindow() || generation != requestGeneration) return;
+            request = null;
+            pending = null;
+            if (bitmap != null) show(bitmap);
+        }
+
+        private void show(Bitmap bitmap) {
+            ImageView image = new ImageView(getContext());
+            image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            image.setImageBitmap(bitmap);
+            image.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            image.setFocusable(false);
+            removeAllViews();
+            addView(image, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+            loaded = true;
+        }
+    }
+
+    /** A queued request holds no Activity or View strongly, including while delivering a result. */
+    private static final class ArtworkRequest implements Runnable {
+        private final WeakReference<RemoteThumbnail> target;
+        private final int generation;
+        private final String imageUrl;
+        private final int pixels;
+        private final String cacheKey;
+        private final Supplier<ArtworkClient> factory;
+        volatile boolean cancelled;
+
+        ArtworkRequest(RemoteThumbnail target, int generation, String imageUrl, int pixels,
+                       String cacheKey, Supplier<ArtworkClient> factory) {
+            this.target = new WeakReference<>(target);
+            this.generation = generation;
+            this.imageUrl = imageUrl;
+            this.pixels = pixels;
+            this.cacheKey = cacheKey;
+            this.factory = factory;
+        }
+
+        @Override public void run() {
+            if (cancelled) return;
+            Bitmap bitmap = REMOTE_BITMAPS.get(cacheKey);
+            try {
+                if (bitmap == null) bitmap = factory.get().fetch(imageUrl, pixels);
+            } catch (IOException | RuntimeException unavailable) {
+                // The title, metadata and download actions remain usable without artwork.
+            }
+            if (cancelled || Thread.currentThread().isInterrupted()) return;
+            if (bitmap != null) REMOTE_BITMAPS.put(cacheKey, bitmap);
+            Bitmap result = bitmap;
+            MAIN.post(() -> {
+                RemoteThumbnail view = target.get();
+                if (!cancelled && view != null) view.complete(generation, result);
+            });
+        }
     }
 
     static ImageView image(Context context, int resource, int targetDp) {

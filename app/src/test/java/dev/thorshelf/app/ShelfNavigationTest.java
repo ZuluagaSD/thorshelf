@@ -4,10 +4,10 @@ import android.content.res.Configuration;
 import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import org.junit.After;
 import org.junit.Before;
@@ -21,10 +21,11 @@ import org.robolectric.annotation.LooperMode;
 
 import java.util.function.Predicate;
 
+import static dev.thorshelf.app.CatalogUiTestSupport.*;
 import static org.junit.Assert.*;
 import static org.robolectric.Shadows.shadowOf;
 
-/** Exercises shelf-to-catalog navigation without making network requests. */
+/** Native shelf and catalog navigation without creating a browser or contacting hShop. */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = {29, 35}, qualifiers = "w411dp-h891dp-port")
 @LooperMode(LooperMode.Mode.PAUSED)
@@ -32,116 +33,148 @@ public class ShelfNavigationTest {
     private ActivityController<MainActivity> controller;
     private MainActivity activity;
     private View root;
+    private FakeClient client;
 
     @Before public void launch() {
+        client = new FakeClient();
+        MainActivity.catalogClientFactory = () -> client;
         controller = Robolectric.buildActivity(MainActivity.class).setup();
         bindActivity();
-        // The shadow delivers normal page callbacks, with no network access.
-        shadowOf(browser()).performSuccessfulPageLoadClientCallbacks();
     }
 
     @After public void close() {
+        client.releaseAll();
         if (controller != null) controller.pause().stop().destroy();
+        MainActivity.catalogClientFactory = CatalogClient::new;
     }
 
-    @Test public void coldLaunchShowsIllustratedShelfWhileCatalogIsPreloaded() {
+    @Test public void coldLaunchShowsIllustratedShelfWithoutLoadingAWebsite() {
+        shadowOf(Looper.getMainLooper()).idle();
         assertTrue(shelf().isShown());
-        assertFalse(browser().isShown());
-        assertEquals("https://hshop.erista.me/", shadowOf(browser()).getLastLoadedUrl());
+        assertFalse(resultsView().isShown());
+        assertNull(CatalogUiTestSupport.find(root, WebView.class, view -> true));
+        assertTrue(client.fetched.isEmpty());
         assertTrue(button("Browse").isSelected());
-        assertTrue(button("View game").isShown());
+        assertTrue(find(TextView.class, view -> "Mario Kart 7".contentEquals(view.getText())).isShown());
         assertTrue(button("All games").isShown());
     }
 
-    @Test public void categoryButtonsOpenTheirRealCatalogSections() {
+    @Test public void categoryButtonsFetchTheirRealCatalogSectionsAsNativeCards() {
         String[] labels = {"All games", "Updates", "DLC", "Virtual Console"};
         String[] paths = {"games", "updates", "dlc", "virtual-console"};
         for (int i = 0; i < labels.length; i++) {
             click(labels[i]);
-            assertWebsiteVisible("https://hshop.erista.me/c/" + paths[i]);
-            click("Shelf");
+            assertNativeCatalog("https://hshop.erista.me/c/" + paths[i]);
+            click("Browse");
             assertTrue(shelf().isShown());
         }
     }
 
-    @Test public void featuredAndGameTilesOpenTitleSearchesInsteadOfInventedListings() {
-        click("View game");
-        assertWebsiteVisible("https://hshop.erista.me/search/results?q=Pokemon+Omega+Ruby&qt=Text&lgy=false");
-        click("Shelf");
-        View title = find(View.class, view -> "Professor Layton and the Miracle Mask. Find in the hShop catalog."
-                .contentEquals(view.getContentDescription() == null ? "" : view.getContentDescription()));
-        assertTrue(title.isFocusable());
-        assertTrue(title.performClick());
-        idle();
-        assertWebsiteVisible("https://hshop.erista.me/search/results?q=Professor+Layton+and+the+Miracle+Mask&qt=Text&lgy=false");
+    @Test public void illustratedGameTilesSearchThePublicCatalog() {
+        for (String title : new String[]{"Mario Kart 7", "Professor Layton and the Miracle Mask"}) {
+            View tile = find(View.class, view -> (title + ". Find in the hShop catalog.")
+                    .contentEquals(view.getContentDescription() == null ? "" : view.getContentDescription()));
+            assertTrue(tile.isFocusable());
+            assertTrue(tile.performClick());
+            assertNativeCatalog(DownloadPolicy.searchUrl(title));
+            click("Browse");
+        }
     }
 
-    @Test public void shelfButtonKeepsTheExistingBrowserAndItsHistory() {
+    @Test public void categoryDrilldownAndBackUseNativeHistoryAndCachedMetadata() {
+        String games = "https://hshop.erista.me/c/games";
+        client.pages.put(games, category(games));
         click("All games");
-        commitCurrentPageHistory();
-        WebView existing = browser();
-        int historySize = existing.copyBackForwardList().getSize();
-        assertTrue(historySize > 0);
-        click("Shelf");
-
+        await("region category", () -> optionalButton("Browse category") != null);
+        click("Browse category");
+        assertNativeCatalog(games + "/s/world");
+        press(KeyEvent.KEYCODE_BUTTON_B);
+        await("cached category", () -> optionalButton("Browse category") != null);
+        assertEquals(1, client.fetchCount(games));
+        assertFalse(shelf().isShown());
+        press(KeyEvent.KEYCODE_BUTTON_B);
         assertTrue(shelf().isShown());
-        assertFalse(existing.isShown());
-        assertSame(existing, browser());
-        assertEquals("https://hshop.erista.me/c/games", existing.getUrl());
-        assertEquals(historySize, existing.copyBackForwardList().getSize());
-        assertFalse(shadowOf(existing).wasDestroyCalled());
-        assertFalse(shadowOf(existing).wasClearHistoryCalled());
+        assertFalse(activity.isFinishing());
+    }
+
+    @Test public void reselectingBrowseReturnsToShelfAndRetainsReusableCatalogMetadata() {
+        String games = "https://hshop.erista.me/c/games";
+        click("All games");
+        assertNativeCatalog(games);
+        click("Browse");
+        assertTrue(shelf().isShown());
         click("Downloads");
         click("Browse");
         assertTrue(shelf().isShown());
-        assertSame(existing, browser());
+        click("All games");
+        await("cached result card", () -> optionalButton("Download") != null);
+        assertEquals(1, client.fetchCount(games));
+        press(KeyEvent.KEYCODE_BUTTON_B);
+        assertTrue(shelf().isShown());
     }
 
-    @Test public void rotationRestoresWebsiteSessionAndSelectedDownloadsTab() {
-        click("Updates");
-        commitCurrentPageHistory();
+    @Test public void backRestoresTheQueryThatMatchesTheCachedSearchResults() {
+        String firstQuery = "A & B? # + é";
+        String firstUrl = DownloadPolicy.searchUrl(firstQuery);
+        String secondUrl = DownloadPolicy.searchUrl("Mario Kart 7");
+        client.pages.put(firstUrl, results(firstUrl, "First search results"));
+        client.pages.put(secondUrl, results(secondUrl, "Second search results"));
+        EditText input = find(EditText.class, view -> true);
+        input.setText(firstQuery);
+        click("Search");
+        assertNativeCatalog(firstUrl);
+        input.setText("Mario Kart 7");
+        click("Search");
+        assertNativeCatalog(secondUrl);
+
+        press(KeyEvent.KEYCODE_BUTTON_B);
+        assertEquals(firstQuery, input.getText().toString());
+        assertNotNull(CatalogUiTestSupport.find(root, TextView.class,
+                view -> "First search results".contentEquals(view.getText()) && view.isShown()));
+        assertEquals(1, client.fetchCount(firstUrl));
+        assertEquals(1, client.fetchCount(secondUrl));
+    }
+
+    @Test public void rotationRestoresNativeCatalogQueryAndSelectedDownloadsTab() {
+        find(EditText.class, view -> true).setText("Mario Kart 7");
+        click("Search");
+        String url = DownloadPolicy.searchUrl("Mario Kart 7");
+        assertNativeCatalog(url);
         click("Downloads");
         rotateToLandscape();
-
         assertTrue(button("Downloads").isSelected());
-        assertFalse(button("Browse").isSelected());
         assertFalse(shelf().isShown());
+        assertEquals("Mario Kart 7", find(EditText.class, view -> true).getText().toString());
         click("Browse");
-        assertWebsiteVisible("https://hshop.erista.me/c/updates");
-        assertEquals("https://hshop.erista.me/c/updates",
-                browser().copyBackForwardList().getCurrentItem().getUrl());
+        assertNativeCatalog(url);
+        assertEquals(2, client.fetchCount(url));
     }
 
-    @Test public void rotationRestoresShelfAndSelectedSetupTab() {
+    @Test public void rotationRestoresShelfAndSelectedSettingsTabWithoutFetchingHiddenCatalog() {
         click("DLC");
-        commitCurrentPageHistory();
-        click("Shelf");
-        click("Setup");
+        assertNativeCatalog("https://hshop.erista.me/c/dlc");
+        click("Browse");
+        click("Settings");
         rotateToLandscape();
-
-        assertTrue(button("Setup").isSelected());
-        assertFalse(shelf().isShown());
+        assertTrue(button("Settings").isSelected());
         click("Browse");
         assertTrue(shelf().isShown());
-        assertFalse(browser().isShown());
-        assertEquals("https://hshop.erista.me/c/dlc", browser().getUrl());
+        assertFalse(resultsView().isShown());
+        assertEquals(1, client.fetched.size());
     }
 
     @Test public void controllerBackReturnsToShelfBeforeFinishingTheActivity() {
         click("All games");
-        browser().clearHistory();
-        assertFalse(browser().canGoBack());
+        assertNativeCatalog("https://hshop.erista.me/c/games");
         press(KeyEvent.KEYCODE_BUTTON_B);
         assertTrue(shelf().isShown());
-        assertFalse(browser().isShown());
         assertFalse(activity.isFinishing());
-
         press(KeyEvent.KEYCODE_BUTTON_B);
         assertTrue(activity.isFinishing());
     }
 
     @Test public void controllerSearchReturnsToBrowseAndFocusesSearch() {
-        click("Setup");
+        click("Settings");
         press(KeyEvent.KEYCODE_BUTTON_Y);
         assertTrue(button("Browse").isSelected());
         EditText search = find(EditText.class, view -> true);
@@ -149,7 +182,7 @@ public class ShelfNavigationTest {
         assertTrue(search.hasFocus());
         search.setText("Mario Kart 7");
         click("Search");
-        assertWebsiteVisible("https://hshop.erista.me/search/results?q=Mario+Kart+7&qt=Text&lgy=false");
+        assertNativeCatalog(DownloadPolicy.searchUrl("Mario Kart 7"));
     }
 
     private void rotateToLandscape() {
@@ -161,8 +194,6 @@ public class ShelfNavigationTest {
         controller.configurationChange(landscape).visible();
         bindActivity();
         assertNotSame("Rotation must recreate this activity", previous, activity);
-        assertEquals(Configuration.ORIENTATION_LANDSCAPE,
-                activity.getResources().getConfiguration().orientation);
     }
 
     private void bindActivity() {
@@ -170,49 +201,30 @@ public class ShelfNavigationTest {
         root = activity.findViewById(android.R.id.content);
     }
 
-    private void commitCurrentPageHistory() {
-        // ShadowWebView's successful callbacks do not populate its back/forward list.
-        shadowOf(browser()).pushEntryToHistory(browser().getUrl());
-    }
-
-    private void assertWebsiteVisible(String expectedUrl) {
+    private void assertNativeCatalog(String expectedUrl) {
+        await("native catalog " + expectedUrl, () -> client.fetched.contains(expectedUrl) && optionalButton("Download") != null);
         assertTrue(button("Browse").isSelected());
         assertFalse(shelf().isShown());
-        assertTrue(browser().isShown());
-        assertEquals(expectedUrl, browser().getUrl());
+        assertTrue(resultsView().isShown());
+        assertTrue(find(TextView.class, view -> GAME.contentEquals(view.getText()) && view.isShown()).isShown());
+        assertNull(optionalButton("‹ Back"));
+        assertNull(optionalButton("Shelf"));
+        assertNull(CatalogUiTestSupport.find(root, WebView.class, view -> true));
     }
 
-    private void click(String label) {
-        assertTrue(button(label).performClick());
-        idle();
-    }
-
+    private void click(String label) { assertTrue(button(label).performClick()); shadowOf(Looper.getMainLooper()).idle(); }
     private void press(int keyCode) {
         assertTrue(activity.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, keyCode)));
         assertTrue(activity.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, keyCode)));
-        idle();
+        shadowOf(Looper.getMainLooper()).idle();
     }
-
-    private void idle() { shadowOf(Looper.getMainLooper()).idle(); }
     private BrowseHomeView shelf() { return find(BrowseHomeView.class, view -> true); }
-    private WebView browser() { return find(WebView.class, view -> true); }
+    private CatalogResultsView resultsView() { return find(CatalogResultsView.class, view -> true); }
     private Button button(String label) { return find(Button.class, view -> label.contentEquals(view.getText())); }
-
+    private Button optionalButton(String label) { return CatalogUiTestSupport.find(root, Button.class, view -> label.contentEquals(view.getText())); }
     private <T extends View> T find(Class<T> type, Predicate<T> predicate) {
-        T result = findIn(root, type, predicate);
+        T result = CatalogUiTestSupport.find(root, type, predicate);
         assertNotNull("Expected view: " + type.getSimpleName(), result);
         return result;
-    }
-
-    private static <T extends View> T findIn(View view, Class<T> type, Predicate<T> predicate) {
-        if (type.isInstance(view) && predicate.test(type.cast(view))) return type.cast(view);
-        if (view instanceof ViewGroup) {
-            ViewGroup group = (ViewGroup) view;
-            for (int i = 0; i < group.getChildCount(); i++) {
-                T result = findIn(group.getChildAt(i), type, predicate);
-                if (result != null) return result;
-            }
-        }
-        return null;
     }
 }

@@ -1,0 +1,66 @@
+{
+  "page": 1,
+  "limit": 200,
+  "total": 4,
+  "revision": 1787729999,
+  "entries": [
+    {
+      "title": "Pokémon Version Blanche",
+      "systems": ["DS"],
+      "author": "Nintendo / GameFreak",
+      "version": "(France)",
+      "titleId": "IRAF",
+      "boxart": "https://db-nds-shop.fr/api/v1/assets/boxart/Pokemon%20Version%20Blanche%20(France)%20(NDSi%20Enhanced).nds.png",
+      "image": "https://db-nds-shop.fr/api/v1/assets/icons/pokemonblanc.png",
+      "downloads": {
+        "Pokemon Version Blanche (France) (NDSi Enhanced).cia": {
+          "url": "https://db-nds-shop.fr/api/v1/download/Pokemon%20Version%20Blanche%20(France)%20(NDSi%20Enhanced).cia",
+          "size": 195328
+        },
+        "Pokemon Version Blanche (France) (NDSi Enhanced).nds": {
+          "url": "https://db-nds-shop.fr/api/v1/download/Pokemon%20Version%20Blanche%20(France)%20(NDSi%20Enhanced).nds",
+          "size": 268435456
+        }
+      },
+      "scripts": [{"type": "installCia", "file": "/untrusted.cia"}]
+    },
+    {
+      "title": "Pokémon Version Noire",
+      "systems": ["DS"],
+      "author": "Nintendo / GameFreak",
+      "version": "(France)",
+      "titleId": "IRBF",
+      "boxart": "https://db-nds-shop.fr/api/v1/assets/boxart/Pokemon%20Version%20Noire%20(France)%20(NDSi%20Enhanced).nds.png",
+      "downloads": {
+        "Pokemon Version Noire (France) (NDSi Enhanced).nds": {
+          "url": "https://db-nds-shop.fr/api/v1/download/Pokemon%20Version%20Noire%20(France)%20(NDSi%20Enhanced).nds",
+          "size": 268435456
+        }
+      }
+    },
+    {
+      "title": "Pokémon Version Blanche 2",
+      "systems": ["DS"],
+      "version": "(France)",
+      "titleId": "IRDF",
+      "downloads": {
+        "Pokemon Version Blanche 2 (France) (NDSi Enhanced).nds": {
+          "url": "https://db-nds-shop.fr/api/v1/download/Pokemon%20Version%20Blanche%202%20(France)%20(NDSi%20Enhanced).nds",
+          "size": 536870912
+        }
+      }
+    },
+    {
+      "title": "Pokémon Version Noire 2",
+      "systems": ["DS"],
+      "version": "(France)",
+      "titleId": "IREF",
+      "downloads": {
+        "Pokemon Version Noire 2 (France) (NDSi Enhanced).nds": {
+          "url": "https://db-nds-shop.fr/api/v1/download/Pokemon%20Version%20Noire%202%20(France)%20(NDSi%20Enhanced).nds",
+          "size": 536870912
+        }
+      }
+    }
+  ]
+}

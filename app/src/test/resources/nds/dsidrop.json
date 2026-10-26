@@ -1,0 +1,175 @@
+{
+  "meta": {
+    "id": "nds",
+    "label": "Nintendo DS",
+    "ext": "zip",
+    "arch": "zip",
+    "out": "nds",
+    "checksum": "md5",
+    "source": "https://archive.org/details/pack-roms-nintendo-ds-eu-usa-jap-rabbits-games",
+    "download": "https://archive.org/download/pack-roms-nintendo-ds-eu-usa-jap-rabbits-games",
+    "coverSource": "https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_DS",
+    "coverBase": "https://raw.githubusercontent.com/libretro-thumbnails/Nintendo_-_Nintendo_DS/master/Named_Boxarts/",
+    "total": 12
+  },
+  "roms": [
+    {
+      "n": "Mario Kart DS (Europe) (Demo) (Kiosk, Multiplayer)",
+      "t": "Mario Kart DS",
+      "r": "Europe",
+      "s": 11607372,
+      "m": "7b93a998353db6e4e481f77958ffc376",
+      "c": "Mario Kart DS (Europe) (Demo) (Kiosk, Multiplayer)",
+      "h": "441088707f6326353f4892b1979925c24d651dc1",
+      "g": [
+        "Demo",
+        "Kiosk, Multiplayer"
+      ]
+    },
+    {
+      "n": "Mario Kart DS (Europe) (En,Fr,De,Es,It)",
+      "t": "Mario Kart DS",
+      "r": "Europe",
+      "s": 19241060,
+      "m": "6f90f59d9d9a9dcecacca13ba14ea0ca",
+      "c": "Mario Kart DS (Europe) (En,Fr,De,Es,It)",
+      "h": "41dc5212076cf3ac09bc4af182cacb94d78d1d96",
+      "l": "En,Fr,De,Es,It"
+    },
+    {
+      "n": "Mario Kart DS (Japan)",
+      "t": "Mario Kart DS",
+      "r": "Japan",
+      "s": 17993357,
+      "m": "847bdc4a84acaa7ee8ea8809dea3285f",
+      "c": "Mario Kart DS (Japan)",
+      "h": "1d185b60338db76c73bcc683c6105f30bd51983e"
+    },
+    {
+      "n": "Mario Kart DS (Japan) (Demo) (Kiosk)",
+      "t": "Mario Kart DS",
+      "r": "Japan",
+      "s": 17978510,
+      "m": "c17ccd4eda45237af88c783e3123c3c7",
+      "c": "Mario Kart DS (Japan) (Demo) (Kiosk)",
+      "h": "c2767c2f634083477ad0b646b31da60343aed640",
+      "g": [
+        "Demo",
+        "Kiosk"
+      ]
+    },
+    {
+      "n": "Mario Kart DS (Korea)",
+      "t": "Mario Kart DS",
+      "r": "Korea",
+      "s": 19031969,
+      "m": "34690319e9ff23eabedf5efee5692d02",
+      "c": "Mario Kart DS (Korea)",
+      "h": "090989b8f5d8d09222144f7e2da33567d425951b"
+    },
+    {
+      "n": "Mario Kart DS (USA, Australia) (En,Fr,De,Es,It)",
+      "t": "Mario Kart DS",
+      "r": "Usa",
+      "s": 19241406,
+      "m": "143ff60808750921118e25de6080f1ba",
+      "c": "Mario Kart DS (USA, Australia) (En,Fr,De,Es,It)",
+      "h": "0f11c57d4b7429ebcfb4169d400e9adcf970b778",
+      "a": [
+        "Usa",
+        "Australia"
+      ],
+      "l": "En,Fr,De,Es,It"
+    },
+    {
+      "n": "Mario Kart DS (USA) (Demo) (Kiosk)",
+      "t": "Mario Kart DS",
+      "r": "Usa",
+      "s": 11612697,
+      "m": "246df92b23b92b774bf19e281e092083",
+      "c": "Mario Kart DS (USA) (Demo) (Kiosk)",
+      "h": "72480dc9f21aaea731af9f9b6a55ecfc2e49f315",
+      "g": [
+        "Demo",
+        "Kiosk"
+      ]
+    },
+    {
+      "n": "Pokemon - Black Version (USA, Europe) (NDSi Enhanced)",
+      "t": "Pokemon - Black Version",
+      "r": "Usa",
+      "s": 110705538,
+      "m": "42a696b6964d0fb9d948467ca5662908",
+      "c": "Pokemon - Black Version (USA, Europe) (NDSi Enhanced)",
+      "h": "fa4ae2e79baaf32b2e727cc5b6fe11a6c0b0b3c1",
+      "a": [
+        "Usa",
+        "Europe"
+      ],
+      "g": [
+        "NDSi"
+      ]
+    },
+    {
+      "n": "Pokemon - Black Version 2 (USA, Europe) (NDSi Enhanced)",
+      "t": "Pokemon - Black Version 2",
+      "r": "Usa",
+      "s": 154068254,
+      "m": "4bbbf5c0d9cda39d34aed3b5500eaa26",
+      "c": "Pokemon - Black Version 2 (USA, Europe) (NDSi Enhanced)",
+      "h": "52f511c5df32e60482c72202195a94005bfdfaba",
+      "a": [
+        "Usa",
+        "Europe"
+      ],
+      "g": [
+        "NDSi"
+      ]
+    },
+    {
+      "n": "Pokemon - White Version (USA, Europe) (NDSi Enhanced)",
+      "t": "Pokemon - White Version",
+      "r": "Usa",
+      "s": 110705517,
+      "m": "8c8b523e4477d084b048d4235283fd92",
+      "c": "Pokemon - White Version (USA, Europe) (NDSi Enhanced)",
+      "h": "ca2bcd6d90f77b0baccd0cf2804ed3cc87b974fc",
+      "a": [
+        "Usa",
+        "Europe"
+      ],
+      "g": [
+        "NDSi"
+      ]
+    },
+    {
+      "n": "Pokemon - White Version 2 (USA, Europe) (NDSi Enhanced)",
+      "t": "Pokemon - White Version 2",
+      "r": "Usa",
+      "s": 153759810,
+      "m": "a4eb86a3516063ec9dc4b39856d0c6cf",
+      "c": "Pokemon - White Version 2 (USA, Europe) (NDSi Enhanced)",
+      "h": "48df3ef18044c2026732bf3a017ba4a173a2f1d2",
+      "a": [
+        "Usa",
+        "Europe"
+      ],
+      "g": [
+        "NDSi"
+      ]
+    },
+    {
+      "n": "50 Jeux Incontournables (France) (En,Fr,De,Es,It,Nl) [b]",
+      "t": "50 Jeux Incontournables",
+      "r": "France",
+      "s": 4117762,
+      "m": "b14eb1aca4935cd76b00b20df61513aa",
+      "c": "50 Jeux Incontournables (France) (En,Fr,De,Es,It,Nl) [b]",
+      "h": "594b49e0a2c0f2477a0476a7790d3c5fb8cfc4ec",
+      "l": "En,Fr,De,Es,It,Nl",
+      "g": [
+        "Bad Dump"
+      ]
+    }
+  ]
+}

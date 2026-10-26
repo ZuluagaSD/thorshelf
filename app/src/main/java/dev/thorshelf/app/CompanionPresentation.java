@@ -18,13 +18,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** A passive view of the main screen's queue; updates share the activity's refresh lifecycle. */
+/** Current browsing context and queue status, sharing the activity's refresh lifecycle. */
 final class CompanionPresentation extends Presentation {
     private TextView pageView, queueView, headlineView, detailView, percentView, downloadingView, preparingView;
     private LinearLayout progressRow;
     private ProgressBar progressView;
     private ParcelView parcelView;
-    private String page = "Browse hShop", queue = "No downloads yet";
+    private String page = "Browse Nintendo 3DS games", queue = "No downloads yet";
+    private boolean showDownloadHistory;
     private List<DownloadStore.Entry> entries = Collections.emptyList();
 
     CompanionPresentation(Context context, Display display) {
@@ -57,6 +58,14 @@ final class CompanionPresentation extends Presentation {
         companion.setPadding(Ui.dp(c, 12), 0, 0, 0);
         brand.addView(companion);
         body.addView(brand, new LinearLayout.LayoutParams(-1, -2));
+
+        pageView = centered(c, "On main screen: " + page, 15, Ui.TEXT);
+        pageView.setTypeface(null, Typeface.BOLD);
+        pageView.setMaxLines(3);
+        pageView.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams pageSize = new LinearLayout.LayoutParams(-1, -2);
+        pageSize.topMargin = Ui.dp(c, 10);
+        body.addView(pageView, pageSize);
 
         parcelView = Ui.parcel(c);
         parcelView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -102,21 +111,23 @@ final class CompanionPresentation extends Presentation {
 
         queueView = centered(c, queue, 12, Ui.MUTED);
         body.addView(queueView, new LinearLayout.LayoutParams(-1, -2));
-        pageView = centered(c, "On main screen: " + page, 13, Ui.MUTED);
-        pageView.setMaxLines(2);
-        pageView.setEllipsize(TextUtils.TruncateAt.END);
-        body.addView(pageView, new LinearLayout.LayoutParams(-1, -2));
         setContentView(scroll);
         render();
     }
 
     void update(String currentPage, String summary) {
-        page = currentPage == null || currentPage.trim().isEmpty() ? "Browse hShop" : currentPage;
+        page = currentPage == null || currentPage.trim().isEmpty() ? "Browse Nintendo 3DS games" : currentPage;
         queue = summary == null ? "" : summary;
         render();
     }
 
     void update(String currentPage, String summary, List<DownloadStore.Entry> downloads) {
+        update(currentPage, summary, downloads, true);
+    }
+
+    void update(String currentPage, String summary, List<DownloadStore.Entry> downloads,
+                boolean showDownloadHistory) {
+        this.showDownloadHistory = showDownloadHistory;
         entries = downloads == null ? Collections.emptyList() : new ArrayList<>(downloads);
         update(currentPage, summary);
     }
@@ -155,24 +166,25 @@ final class CompanionPresentation extends Presentation {
             } else if (downloading) {
                 showProgress(0, true);
             }
-        } else if (ready) {
-            headlineView.setText("Ready for your next adventure");
+        } else if (showDownloadHistory && ready) {
+            // The last result persists across sessions; keep it visibly historical.
+            headlineView.setText("Last preparation complete");
             detailView.setText(PreparationText.summary(preparation, true));
-            showProgress(100, false);
-        } else if (!preparation.isEmpty()) {
-            headlineView.setText("Preparation update");
+        } else if (showDownloadHistory && !preparation.isEmpty()) {
+            headlineView.setText("Last preparation update");
             detailView.setText(preparation);
-        } else if (complete > 0) {
+        } else if (showDownloadHistory && complete > 0) {
             headlineView.setText("A little more adventure");
             detailView.setText("Your downloads are ready to prepare on the main screen.");
         } else {
             headlineView.setText("Your next adventure awaits");
-            detailView.setText("Browse on the main screen. Your downloads will appear here.");
+            detailView.setText("Browse on the main screen. Active downloads and preparation will appear here.");
         }
         downloadingView.setText(running > 0 ? running + " downloading"
                 : active > 0 ? active + " waiting"
                 : complete > 0 ? complete + " downloaded" : "No downloads");
-        preparingView.setText(preparing ? "1 preparing" : ready ? "Game ready" : "Ready when you are");
+        preparingView.setText(preparing ? "1 preparing"
+                : ready && showDownloadHistory && next == null ? "Last game prepared" : "No preparation running");
         // Older callers can still provide a queue summary without repeating a preparation message.
         String queueLine = queue.contains("\n") ? queue.substring(0, queue.indexOf('\n')) : queue;
         queueView.setText(queueLine);

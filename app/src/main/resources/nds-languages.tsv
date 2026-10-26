@@ -1,0 +1,1365 @@
+# Exact DS edition languages: No-Intro filename -> game serial -> GameTDB languages.
+# Supplement only: explicit language and known single-country editions are excluded.
+# Public metadata only; source snapshot versions and hashes below. No game files or descriptions included.
+# Catalog https://raw.githubusercontent.com/0x1a4-dev/DSiDrop/main/public/data/nds.json
+# No-Intro via libretro/libretro-database, version 2026.10.07
+# https://github.com/libretro/libretro-database/blob/master/metadat/no-intro/Nintendo%20-%20Nintendo%20DS.dat
+# GameTDB https://www.gametdb.com/dstdb.zip?LANG=EN version 20261026214613
+# Input SHA256 catalog=4741928966b8bdb135fbe303f757cd4a4eead0d55f336465e66d82de007807b7
+# Input SHA256 nointro=0b3d7f233cdc14e13552fbf721edde3b57b8e9b54a68e3baf8689672a3c8f6e1
+# Input SHA256 gametdb=4abf121811c12919e3dc39b0bdbecf5973b38cdb26f9d3c552aaa1017a6d8888
+# Columns: exact catalog filename<TAB>language codes<TAB>GameTDB DS ID
+007 - Blood Stone (USA)	en	BJBE
+007 - Blood Stone (United Kingdom)	en	BJBP
+1 vs 100 (Australia)	en	YJYP
+1 vs 100 (USA)	en	CIOE
+10 voor Taal (Netherlands)	nl	CTPH
+100 Classic Book Collection (Europe)	en	YBNP
+100 Classic Books (USA)	en	YBNE
+1001 Crosswords (Europe)	en	TCXP
+1001 Touch Games (Europe)	en	B8KP
+1001 Touch Games (USA)	en	B8KE
+12 (Europe)	en	CI2P
+123 Sesame Street - Cookie's Counting Carnival - The Videogame (Australia)	en	BSRU
+123 Sesame Street - Cookie's Counting Carnival - The Videogame (USA)	en	BSRE
+123 Sesame Street - Elmo's A-to-Zoo Adventure - The Videogame (Australia)	en	BERU
+123 Sesame Street - Elmo's A-to-Zoo Adventure - The Videogame (USA)	en	BERE
+18 Classic Card Games (USA)	en	BY8E
+2 Game Pack - My Amusement Park + Digging for Dinosaurs (USA)	en	TKSE
+2 Game Pack! - Monster Trucks Mayhem + ATV - Thunder Ridge Riders (USA)	en	YAME
+2-Pack - Pinkalicious - It's Party Time! & Silverlicious - Sweet Adventure (USA)	en	TLPE
+3 Game Pack! - Uno + Skip-Bo + Uno Free Fall (USA)	en	AUOE
+4 Elements (Europe)	en	B4EP
+4 Game Fun Pack - Monopoly + Boggle + Yahtzee + Battleship (Europe)	en	AHBP
+4 Game Fun Pack - Monopoly + Boggle + Yahtzee + Battleship (USA)	en	AHBE
+4 Game Pack! - Battleship + Connect Four + Sorry! + Trouble (USA)	en	ABEE
+4 Game Pack! - Clue + Aggravation + Perfection + Mouse Trap (USA)	en	ALPE
+50 Classic Games (USA)	en	BPRE
+50 Classic Games (USA) (Rev 1)	en	BPRE
+50 More Classic Games (USA)	en	B5OE
+7 Wonders - Treasures of Seven (Europe)	en	B7GP
+7 Wonders - Treasures of Seven (USA)	en	B7VE
+7 Wonders II (Europe)	en	B7WP
+7 Wonders II (USA)	en	B7WE
+7 Wonders of the Ancient World (USA)	en	Y7WE
+AFL Mascot Manor (Australia)	en	CQQP
+AMF Bowling Pinbusters! (USA)	en	YAFE
+ATV Quad Frenzy (USA)	en	ATVE
+ATV Wild Ride (USA)	en	BN8E
+Ace Attorney Investigations - Miles Edgeworth (Europe)	en	C32P
+Ace Attorney Investigations - Miles Edgeworth (USA)	en	C32E
+Active Health with Carol Vorderman (Europe)	en	IA8P
+Advance Wars - Dual Strike (USA, Australia)	en	AWRE
+Adventure Time - Hey Ice King! Why'd You Steal Our Garbage!! (USA)	en	TATE
+Adventures of Pinocchio (Europe)	en	CPKP
+Again - Interactive Crime Novel (USA)	en	CA5E
+Age of Empires - The Age of Kings (USA)	en	AEKE
+Air Traffic Chaos (USA)	en	CAOE
+Alex Rider - Stormbreaker (USA)	en	ALXE
+All Star Cheer Squad (USA)	en	YAUE
+Alpha and Omega (USA)	en	BHVE
+Alvin and the Chipmunks - Chipwrecked (Europe)	en	B7ZP
+Alvin and the Chipmunks - The Squeakquel (USA)	en	BAVE
+Aly & AJ Adventure, The (USA)	en	YNYE
+Amazing Adventures - The Forgotten Ruins (USA)	en	CA7E
+America's Next Top Model (USA)	en	C2ME
+America's Test Kitchen - Let's Get Cooking (USA)	en	BKCE
+American Girl - Julie Finds a Way (USA)	en	YAJE
+American Girl - Kit Mystery Challenge! (USA)	en	CAME
+Animal Boxing (USA)	en	CABE
+Animal Crossing - Wild World (USA)	en	ADME
+Animal Crossing - Wild World (USA) (Rev 1)	en	ADME
+Animal Genius (USA)	en	YAGE
+Animal Planet - Vet Collection (USA)	en	BA2E
+Animal Planet - Vet Life (USA)	en	BV2E
+Annie M.G. Schmidt's Pluk van de Petteflet (Netherlands)	en	CQWH
+Apollo Justice - Ace Attorney (Europe)	en	AGCP
+Apollo Justice - Ace Attorney (USA)	en	AGCE
+Aquarium by DS (USA)	en	AQ8E
+Arceus Distribution 2009 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y6XE
+Arctic Tale (USA)	en	YA3E
+Are You Smarter than a 10 Year Old - The Official Nintendo DS Game (Europe)	en	CQOP
+Are You Smarter than a 5th Grader (Australia)	en	YS5P
+Are You Smarter than a 5th Grader (USA)	en	YS5E
+Are You Smarter than a 5th Grader - Back to School (USA) (NDSi Enhanced)	en	VS5E
+Are You Smarter than a 5th Grader - Game Time (USA)	en	C5UE
+Are You Smarter than a 5th Grader - Make the Grade (USA)	en	CSTE
+Ash's PIKACHU! Distribution 2011 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y8SE
+Atari Greatest Hits - Volume 1 (USA)	en	BR6E
+Atari Greatest Hits - Volume 2 (USA)	en	BR7E
+Atelier Annie - Alchemists of Sera Island (USA)	en	CA2E
+Avalon Code (USA)	en	YOGE
+Avatar - The Last Airbender (USA)	en	AVAE
+Avatar - The Last Airbender - Into the Inferno (USA)	en	CAVE
+Avatar - The Last Airbender - The Burning Earth (USA)	en	YAVE
+Avatar - The Legend of Aang - The Burning Earth (Europe)	en	YAVP
+Away - Shuffle Dungeon (USA)	en	YAWE
+B-17 - Fortress in the Sky (USA)	en	AB7E
+Baby Pals (USA)	en	YBRE
+Babysitting Mania (USA)	en	CBYE
+Back at the Barnyard - Barnyard Games (Europe)	en	CB8P
+Back at the Barnyard - Slop Bucket Games (USA)	en	CB8E
+Backyard Baseball '09 (USA)	en	YABE
+Backyard Baseball '10 (USA)	en	CX5E
+Backyard Basketball (USA)	en	AX8E
+Backyard Football '09 (USA)	en	CFQE
+Backyard Football (USA)	en	YARE
+Backyard Hockey (USA)	en	AY8E
+Backyard Sports - Rookie Rush (USA)	en	B8SE
+Backyard Sports - Sandlot Sluggers (USA)	en	BBAE
+Backyardigans, The (Europe)	en	BBYP
+Backyardigans, The (USA)	en	BBYE
+Bakugan - Battle Brawlers - Battle Trainer (USA)	en	BBKE
+Balloon Pop (USA)	en	BLTE
+Balls of Fury (USA)	en	YBLE
+Bangai-O Spirits (Europe)	en	AY6P
+Bangai-O Spirits (USA)	en	AY6E
+Barbie as the Island Princess (USA)	en	YBPE
+Barbie as the Island Princess (United Kingdom)	en	YBPP
+Barbie in the 12 Dancing Princesses (USA)	en	AIPE
+Beat City (USA)	en	BEYE
+Beat the Intro (Europe)	en	BEIP
+Bee Game, The (USA)	en	AEFE
+Bee Movie Game (Europe)	en	YB4P
+Bee Movie Game (Netherlands)	nl	YB4H
+Bee Movie Game (USA)	en	YB4E
+Beetle King (Europe)	en	AZ6P
+Bejeweled 3 (USA)	en	B2XE
+Bejeweled Twist (USA) (NDSi Enhanced)	en	VBTE
+Ben 10 - Protector of Earth (Europe)	en	AWOP
+Ben 10 - Protector of Earth (USA)	en	AWOE
+Bermuda Triangle - Saving the Coral (USA)	en	CRSE
+Best Buy Nintendo Zone Beacon (USA) (Wi-Fi Kiosk)	en	Y83E
+Betty Boop's Double Shift (USA)	en	YBXE
+Big Brain Academy (USA, Australia)	en	AYAE
+Big Deal, The (Europe)	en	CDEP
+Big Mutha Truckers (USA)	en	AMUE
+Big Time Rush - Backstage Pass (USA)	en	TBHE
+Bigfoot - Collision Course (USA)	en	CFXE
+Biggest Loser USA, The (Europe) (NDSi Enhanced)	en	VBLV
+Biggest Loser, The (USA) (NDSi Enhanced)	en	VBLE
+Bigs 2, The (USA)	en	CV4E
+Biker Mice from Mars (Europe)	en	AVQP
+Billiard Action (Europe)	en	AZBP
+Bionicle Heroes (USA)	en	AH8E
+Black Sigil - Blade of the Exiled (USA)	en	CBXE
+Blades of Thunder II (USA)	en	ABDE
+Bleach - Dark Souls (USA)	en	ABZE
+Bleach - The 3rd Phantom (USA)	en	YBTE
+Bleach - The Blade of Fate (USA)	en	ABLE
+Blue Dragon - Awakened Shadow (USA)	en	YBUE
+Blue Dragon - Awakened Shadow (United Kingdom)	en	YBUP
+Blue Dragon Plus (USA)	en	YYBE
+Bomberman (USA)	en	ABME
+Bomberman Land Touch! (USA)	en	ABXE
+Bomberman Land Touch! 2 (USA)	en	YB2E
+Bookworm (Europe)	en	BKWP
+Bookworm (USA)	en	BKWE
+Brain Age - Train Your Brain in Minutes a Day! (USA)	en	ANDE
+Brain Age - Train Your Brain in Minutes a Day! (USA) (Rev 1)	en	ANDE
+Brain Boost - Beta Wave (USA)	en	AUIE
+Brain Boost - Gamma Wave (USA)	en	AUTE
+Brain Buster - Puzzle Pak (USA)	en	ACPE
+Brain Quest - Grades 3 & 4 (USA)	en	CQAE
+Brain Quest - Grades 5 & 6 (USA)	en	CQBE
+Bratz - 4 Real (USA)	en	YB9E
+Bratz - Fashion Boutique (USA) (NDSi Enhanced)	en	VBRE
+Bratz - Forever Diamondz (USA)	en	AVDE
+Bratz - Forever Diamondz (United Kingdom)	en	AVDP
+Bratz - Super Babyz (USA)	en	YBYE
+Break 'em All (USA)	en	AZVE
+Brick 'em All DS (Europe)	en	AZVP
+Bubble Bobble Revolution (USA)	en	AB6E
+Bubble Bobble Revolution (USA) (Rev 1)	en	AB6E
+Bubble Guppies (Europe)	en	TBGP
+Bubble Guppies (USA)	en	TBGE
+Build-a-Lot (Europe)	en	CL7P
+Build-a-Lot (USA)	en	CL7E
+Burger Bot (USA)	en	BBZE
+Burger Island (USA)	en	CVAE
+Bust-A-Move DS (Europe)	en	ABTP
+Bust-A-Move DS (USA)	en	ABTE
+Cabela's Dangerous Hunts 2011 (USA)	en	BQGE
+Cake Mania (USA)	en	AOYE
+Cake Mania - Main Street (USA)	en	B5UE
+Cake Mania 2 - Jill's Next Adventure! (USA)	en	CAKE
+Cake Mania 3 (USA)	en	B3ME
+Call of Duty - Black Ops (Canada) (Fr-CA)	fr	BDYX
+Call of Duty - Black Ops (USA)	en	BDYE
+Call of Duty - Black Ops (United Kingdom)	en	BDYP
+Call of Duty - Modern Warfare - Mobilized (USA)	en	C62E
+Call of Duty - Modern Warfare - Mobilized (United Kingdom)	en	C62P
+Call of Duty - Modern Warfare 3 - Defiance (USA)	en	B5BE
+Call of Duty - Modern Warfare 3 - Defiance (United Kingdom)	en	B5BP
+Call of Duty - World at War (Europe)	en	CALP
+Call of Duty - World at War (USA)	en	CALE
+Call of Duty 4 - Modern Warfare (USA)	en	YCOE
+Call of Duty 4 - Modern Warfare (United Kingdom)	en	YCOP
+Camping Mama - Outdoor Adventures (USA)	en	TCME
+Candace Kane's Candy Factory (USA)	en	CKCE
+Captain Sabertooth and the Trials by Fire (Europe)	en,de,sv,da,no	B49P
+Cars (Europe)	en	ACZP
+Cars (USA)	en	ACZE
+Cars - Mater-National Championship (USA)	en	YCME
+Casper's Scare School - Classroom Capers (USA)	en	CASE
+Casper's Scare School - Spooky Sports Day (USA)	en	CC2E
+Castlevania - Dawn of Sorrow (USA)	en	ACVE
+Castlevania - Portrait of Ruin (USA)	en	ACBE
+Casual Mania (USA)	en	BPWE
+Cate West - The Vanishing Files (USA)	en	CWFE
+Catz (USA)	en	AC7E
+Celebi Distribution 2011 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y8CE
+Chainz Galaxy (Europe)	en	B7IP
+Challenge Me - Brain Puzzles (USA)	en	ANQE
+Challenge Me - Math Workout (USA)	en	AR6E
+Chameleon - To Dye For! (USA)	en	ABKE
+Championship Pony (USA)	en	YIYE
+Cheer We Go (USA) (NDSi Enhanced)	en	VCGE
+Cheetah Girls, The - Passport to Stardom (USA)	en	YTJE
+Cheetah Girls, The - Pop Star Sensations (USA)	en	AU3E
+Chibi-Robo! - Park Patrol (USA)	en	AJBE
+Children of Mana (USA, Australia)	en	ASEE
+Chronicles of Narnia, The - Prince Caspian (United Kingdom)	en	YQNP
+Chuck E. Cheese's Gameroom (USA)	en	BCUE
+Chuck E. Cheese's Party Games (USA)	en	BC8E
+Chuck E. Cheese's Playhouse (USA)	en	BC7E
+Classic Action - Devilish (USA)	en	ADVE
+Classic Word Games (Europe) (NDSi Enhanced)	en	VCWV
+Classic Word Games (USA) (NDSi Enhanced)	en	VCWE
+Clever Kids - Farmyard Fun (Europe)	en	CLVP
+Clever Kids - Pirates (Europe)	en	CLKP
+Cloudy with a Chance of Meatballs (United Kingdom)	en	CZAP
+Cloudy with a Chance of Meatballs 2 (USA)	en	TCNE
+Club Penguin - Elite Penguin Force (Europe)	en	CLPP
+Club Penguin - Elite Penguin Force (USA)	en,fr,es	CLPE
+Clueless Fashion (Europe) (Proto)	en	CKLP
+Command and Destroy (USA)	en	YC5E
+Contact (USA)	en	ACOE
+Contra 4 (Europe) (Proto)	en	AIPE
+Contra 4 (USA)	en	YCTE
+Cookie & Cream (USA)	en	AK3E
+Cooking Guide - Can't Decide What to Eat (Europe)	en	CNVP
+Cooking Guide - Can't Decide What to Eat (Europe) (Rev 1)	en	CNVP
+Cooking Guide - Can't Decide What to Eat (Europe) (Rev 2)	en	CNVP
+Cooking Mama (USA)	en	ACCE
+Cooking Mama 2 - Dinner with Friends (USA)	en	YCQE
+Cooking Mama 3 - Shop & Chop (USA)	en	B3CE
+Corvette Evolution GT (USA)	en	AVXE
+Cory in the House (Europe)	en	YIHP
+Cory in the House (USA)	en	YIHE
+Cosmos Chaos (USA)	en	B6CE
+Countdown - The Game (Europe)	en	BC3P
+Crafting Mama (USA)	en	BQ8E
+Crash Boom Bang! (USA)	en	ACFE
+Crash of the Titans (USA)	en	AQJE
+Crayola Treasure Adventures (USA)	en	YCYE
+Crazy Machines (USA)	en	CRZE
+Crime Lab - Body of Evidence (United Kingdom) (NDSi Enhanced)	en	VAOV
+CrossworDS (USA, Australia)	en	YCUE
+Custom Robo Arena (USA)	en	ACLE
+DK - Jungle Climber (USA)	en	ABUE
+DaGeDar (USA)	en	B6VE
+Dancing on Ice (Europe)	en	CISP
+Dancing with the Stars - We Dance! (USA)	en	CD3E
+Danny Phantom - Urban Jungle (USA)	en	ANPE
+Daring Game for Girls, The (USA)	en	BDAE
+Dark Spire, The (USA)	en	YEAE
+Darkrai Distribution 2008 (USA) (Wi-Fi Kiosk) (Save Data)	en	AAQE
+Dawn of Heroes (USA)	en	CIEE
+Deal or No Deal (Australia)	en	YLAU
+Deal or No Deal (Netherlands)	nl	YLAH
+Deal or No Deal (USA)	en	YDLE
+Deal or No Deal - The Banker Is Back! (Europe)	en	CD4P
+Deal or No Deal - The Official Nintendo DS Game (Europe)	en	YLAP
+Death Jr. and the Science Fair of Doom (USA)	en	AFDE
+Deep Labyrinth (Europe)	en	ADLP
+Deep Labyrinth (USA)	en	ADLE
+Defendin' DePenguin (Europe) (Rev 1)	en	YYUP
+Dementium - The Ward (USA)	en	YDTE
+Denksport Varia (Netherlands)	nl	CQLH
+Deoxys Distribution 2008 (USA) (Wi-Fi Kiosk) (Save Data)	en	AARE
+Desktop Tower Defense (USA)	en	COUE
+Devilish (Europe)	en	ADVP
+Diamond Trust of London (Jason Rohrer with Music by Tom Bailey) (USA)	en	TDTE
+Diary Girl (USA)	en	YGDE
+Diddy Kong Racing DS (USA)	en	AWDE
+Diego's Build and Rescue (USA)	en	B6GE
+Dig Dug - Digging Strike (Europe)	en	ADDP
+Dig Dug - Digging Strike (USA)	en	ADDE
+Digimon World - Dawn (USA)	en	A3VE
+Digimon World - Dusk (USA)	en	A6RE
+Digimon World Championship (USA)	en	YDIE
+Digimon World DS (USA)	en	ADNE
+Dino Master - Dig, Discover, Duel (USA)	en	ADCE
+Dino Pets - The Virtual Pet Game (USA)	en	C5NE
+Dinosaur King (USA)	en	A6KE
+Discovery Kids - Dolphin Discovery (USA)	en	CPDE
+Disgaea DS (USA)	en	CDGE
+Disney Big Hero 6 - Battle in the Bay (Europe)	en	TB6P
+Disney Big Hero 6 - Battle in the Bay (USA)	en	TB6E
+Disney Friends (Europe)	en	AXVP
+Disney Friends (Netherlands)	nl	AXVH
+Disney Friends (USA)	en	AXVE
+Disney Frozen - Olaf's Quest (Europe)	en	TFBP
+Disney Frozen - Olaf's Quest (USA)	en	TFBE
+Disney Princess - Magical Jewels (USA)	en	YMJE
+Disney Two Pack - Frozen Olaf's Quest + Big Hero 6 - Battle in the Bay (USA)	en	TF2E
+Doctor Who - Evacuation Earth (Europe)	en	B2DP
+Dogz (USA)	en	AKKE
+Dogz (United Kingdom)	en	AKKP
+Dokapon Journey (USA)	en	YYJE
+Don Bluth Presents - Dragon's Lair (USA)	en	BDLE
+Doodle Jump Journey (USA)	en	TDJE
+Dora & Friends' - Fantastic Flight (Europe)	en	TDUP
+Dora & Kai-Lan's Pet Shelter (USA)	en	B58E
+Dora Puppy (USA)	en	BDPE
+Dora the Explorer - Dora Puppy (Europe)	en	BDPP
+Dora the Explorer - Dora Saves the Mermaids (Europe)	en	YDRP
+Dora the Explorer - Dora Saves the Mermaids (USA)	en	YDRE
+Dora the Explorer - Dora Saves the Snow Princess (Europe)	en	CDWP
+Dora the Explorer - Dora Saves the Snow Princess (USA)	en	CDRE
+Dora's Big Birthday Adventure (USA)	en	B4DE
+Dora's Cooking Club (USA)	en	B5CE
+Dr. Seuss - How the Grinch Stole Christmas! (USA)	en	YGWE
+Draglade (USA)	en	AD9E
+Dragon Ball - Origins (USA)	en	CDZE
+Dragon Ball Z - Harukanaru Densetsu (USA)	en	A5LE
+Dragon Ball Z - Supersonic Warriors 2 (USA)	en	A2SE
+Dragon Booster (USA)	en	ABRE
+Dragon Quest Heroes - Rocket Slime (USA)	en	ADQE
+Dragon Quest Monsters - Joker (USA)	en	AJRE
+Dragonite Distribution 2008 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y6DE
+Drama Queens (Europe)	en	CYQP
+Drama Queens (USA)	en	CYQE
+Dream Dancer (USA)	en	BDCE
+Dream Day - Wedding Destinations (Europe)	en	CWEP
+Dream Day - Wedding Destinations (USA)	en	CWEE
+Dream Salon (USA)	en	BBSE
+Driver Dan's Story Train (Europe)	en	TDDP
+Drivers Ed Portable (USA)	en	CCEE
+Driving Theory Training (Europe)	en	CDXP
+Driving Theory Training (Europe) (Rev 1)	en	CDXP
+Drone Tactics (USA)	en	AWCE
+Dropcast (USA)	en	CDPE
+Ducati Moto (USA)	en	YDHE
+Dungeon Explorer - Warriors of Ancient Arts (USA)	en	AXJE
+Dynasty Warriors DS - Fighter's Battle (USA)	en	A3ME
+Eco-Creatures - Save the Forest (USA)	en	AERE
+Ed, Edd n Eddy - Scam of the Century (USA)	en	A5OE
+Eggheads (Europe)	en	B4OP
+Eindeloos Backgammon (Netherlands)	nl	BBNH
+Eindeloos Games Top 10 (Netherlands)	en,nl	C2ZH
+Eindeloos Mahjong 2 - Een Reis om de Wereld (Netherlands)	nl	CMJH
+Eindeloos Patience (Netherlands)	nl	YGIH
+Electroplankton (USA)	en	ATIE
+Elements of Destruction (USA)	en	YEDE
+Elf Bowling 1 & 2 (USA)	en	AEBE
+Elite Beat Agents (Europe)	en	AOSP
+Elite Beat Agents (USA)	en	AOSE
+Emergency Room - Real Life Rescues (USA)	en	CEJE
+Emergency! - Disaster Rescue Squad (USA)	en	CIQE
+Emily Archer - The Curse of King Tut's Tomb (Europe)	en	BUEP
+Emily the Strange - Strangerous (USA) (NDSi Enhanced)	en	VESE
+Equestrian Training (Europe)	en	YGAP
+Eragon (USA)	en	AEGE
+Essential Sudoku DS (Europe)	en	AZIP
+Etrian Odyssey (USA)	en	AKYE
+Etrian Odyssey II - Heroes of Lagaard (USA)	en	YIKE
+Etrian Odyssey III - The Drowned City (USA)	en	BJ3E
+Everything's Rosie (Europe)	en	TERP
+Expeditie Robinson (Netherlands)	en	YL8H
+F-24 - Stealth Fighter (USA)	en	AF9E
+FIFA Soccer 06 (USA)	en	AF6E
+Fab 5 Soccer (USA)	en	YJME
+Fab 5 Soccer (USA) (Rev 1)	en	YJME
+Fabulous Finds (Europe)	en	BFBP
+Fabulous Finds (USA)	en	BFBE
+Family Feud - 2010 Edition (USA)	en	BFUE
+Family Fortunes (Europe)	en	BFTP
+Fancy Nancy - Tea Party Time! (USA) (NDSi Enhanced)	en	VFNE
+Fantasy Aquarium by DS (USA)	en	AQ7E
+Farmtopia (USA)	en	C5ZE
+Fashion Dogz (Europe)	en	YNZP
+Feji (Russia)	ru	CDFR
+Fifi and the Flowertots (Europe)	en	C53P
+Fifi and the Flowertots - Fifi's Garden Party (Europe)	en	B27P
+Fighting Fantasy - The Warlock of Firetop Mountain (USA)	en	BFGE
+Final Fantasy - The 4 Heroes of Light (Europe)	en	BFXP
+Final Fantasy - The 4 Heroes of Light (USA)	en	BFXE
+Final Fantasy Fables - Chocobo Tales (USA)	en	AEHE
+Final Fantasy III (USA)	en	AFFE
+Final Fantasy XII - Revenant Wings (USA)	en	AXFE
+Finding Nemo - Escape to the Big Blue (Europe)	en	AFNP
+Finding Nemo - Escape to the Big Blue (USA)	en	AFNE
+Finding Nemo - Escape to the Big Blue - Special Edition (USA)	en	TFNE
+Fireman Sam (Europe)	en	B3FP
+Fireman Sam - Action Stations (Europe)	en	TQSP
+Fish Tycoon (USA)	en	YF7E
+Flips 6 Book Pack - Cathy Cassidy (Europe)	en	BF7P
+Flips 6 Book Pack - Enid Blyton - Faraway Tree Stories (Europe)	en	BF8P
+Flips 6 Book Pack - Eoin Colfer - Artemis Fowl (Europe)	en	BF6P
+Flips 6 Book Pack - Mr Gum by Andy Stanton (Europe)	en	BFVP
+Flips 6 Book Pack - Rick Riordan - Percy Jackson (Europe)	en	BFNP
+Flips 8 Book Pack - Enid Blyton - The Adventure Series (Europe)	en	BFQP
+Flips 8 Book Pack - Too Ghoul for School (Europe)	en	BF9P
+Florist Shop (USA)	en	B2FE
+Flower, Sun and Rain - Murder and Mystery in Paradise (USA)	en	YHNE
+Flunkene Pirater (Norway)	no	BFEN
+Flunkerne Pirater (Denmark)	da	BFEQ
+Flushed Away (Europe)	en	ALHP
+Flushed Away (USA)	en	ALHE
+Football Director DS (Europe)	en	CFFP
+Ford Racing 3 (USA)	en	AF3E
+Fossil Fighters (USA)	en	YKHE
+Fossil Fighters Champions (USA) (NDSi Enhanced)	en	VDEE
+Fossil League - Dino Tournament Championship (Europe)	en	AKGP
+Fossil League - Dino Tournament Championship (USA)	en	AKGE
+Foster's Home for Imaginary Friends - Imagination Invaders (Europe)	en	YFIP
+Foster's Home for Imaginary Friends - Imagination Invaders (USA)	en	YFIE
+Freddi Fish - ABC under the Sea (USA)	en	CF3E
+Freddie Flintoff's Power Play Cricket (Europe)	en	BCEP
+Freedom Wings (Europe)	en	AGWP
+Freedom Wings (USA)	en	AGWE
+Frogger - Helmet Chaos (USA)	en	AFGE
+From the Abyss (USA)	en	YVSE
+Front Mission (USA)	en	AFOE
+Fullmetal Alchemist - Dual Sympathy (Europe)	en	AHRP
+Fullmetal Alchemist - Dual Sympathy (USA)	en	AHRE
+Fullmetal Alchemist - Trading Card Game (USA)	en	AL9E
+Game & Watch Collection (USA, Europe) (Club Nintendo)	en	AWTE
+Game & Watch Collection 2 (USA) (Club Nintendo)	en	CGWE
+Game Hits! (USA)	en	C7GE
+Gardening Guide - How to Get Green Fingers (United Kingdom)	en	C3FU
+Gardening Mama (USA)	en	CG3E
+Garfield Gets Real (USA)	en	YGFE
+Garfield's Fun Fest (USA)	en	CGFE
+Geometry Wars - Galaxies (USA)	en	YGLE
+George of the Jungle and the Search for the Secret (USA)	en	YGJE
+Giana Sisters DS (USA)	en	BZIE
+Girl Time - Everything You Need for a Hip, Happening Life! (USA)	en	CE9E
+Girls Only (USA)	en	BGLE
+Glory of Heracles (USA)	en	YEKE
+Go, Diego, Go! - Great Dinosaur Rescue (USA)	en	CGDE
+Go, Diego, Go! - Safari Rescue (Europe)	en	YEQP
+Go, Diego, Go! - Safari Rescue (USA)	en	YEQE
+GoPets - Vacation Island! (USA)	en	AGQE
+Godzilla Unleashed - Double Smash (USA)	en	A5ZE
+Gogo's Crazy Bones (USA)	en	TGGE
+Golden Balls (Europe)	en	CGOP
+Golden Nugget Casino DS (USA)	en	AGNE
+GoldenEye - Rogue Agent (Europe)	en	AGEP
+GoldenEye - Rogue Agent (USA)	en	AGEE
+GoldenEye 007 (USA)	en	BJCE
+GoldenEye 007 (United Kingdom)	en	BJCP
+Goosebumps HorrorLand (Europe)	en	CGPP
+Goosebumps HorrorLand (USA)	en	CGPE
+Greg Hastings' Tournament Paintball Max'd (Europe)	en	AGXP
+Greg Hastings' Tournament Paintball Max'd (USA)	en	AGXE
+Guilty Gear - Dust Strikers (USA)	en	AG2E
+Guitar Hero - On Tour (United Kingdom)	en,fr,de,es,it	YGHP
+Guitar Hero - On Tour - Decades (United Kingdom)	en	CGSP
+Guitar Hero - On Tour - Modern Hits (United Kingdom)	en	C6QP
+Gunpey DS - Music x Puzzle (USA)	en	AGPE
+Hamsterz 2 (Europe)	en	AH3P
+Hamsterz Life (Europe)	en	ALVP
+Hamsterz Life (USA)	en	ALVE
+Hands On! Tangrams (USA)	en	C67E
+Hannah Montana (USA)	en	AHNE
+Hannah Montana - Music Jam (USA)	en	YH2E
+Hannah Montana - The Movie (USA)	en	CI7E
+Hannah Montana - The Movie (United Kingdom)	en	CI7P
+Happy Cooking (USA)	en	CHVE
+Hardy Boys, The - Treasure on the Tracks (USA)	en	C3TE
+Harlem Globetrotters - World Tour (USA)	en	AHXE
+Harry Potter and the Order of the Phoenix (USA)	en	A5PE
+Harry Potter and the Order of the Phoenix (United Kingdom)	en	A5PP
+Harvest Moon - Frantic Farming (Europe)	en	C5QP
+Harvest Moon - Frantic Farming (USA)	en	C5QE
+Harvest Moon DS (USA)	en	ABCE
+Harvest Moon DS (USA) (Rev 1)	en	ABCE
+Harvest Moon DS - Grand Bazaar (USA)	en	CB9E
+Harvest Moon DS - Island of Happiness (USA)	en	ABJE
+Harvest Moon DS - Sunshine Islands (USA)	en	YB3E
+Harvest Moon DS - The Tale of Two Towns (USA)	en	BKUE
+Harvest Moon DS Cute (USA)	en	AB4E
+Have Fun with Crosswords (Europe)	en	CROP
+Heavy Armor Brigade (USA)	en	YKBE
+Hello Kitty - Daily (Europe)	en	YSRP
+Hello Kitty - Daily (USA)	en	YSRE
+Hero's Saga - Laevatein Tactics (USA)	en	YLHE
+Heroes of Mana (Europe)	en	AHEP
+Heroes of Mana (USA)	en	AHEE
+Hi Hi Puffy AmiYumi - The Genie & the Amp (USA)	en	AHHE
+Hi! Hamtaro - Ham-Ham Challenge (USA)	en	A8CE
+Hidden Mysteries - Buckingham Palace - Secrets of Kings and Queens (USA)	en	BHYE
+Hidden Mysteries - Salem Secrets (Europe)	en	BWIP
+Hidden Mysteries - Salem Secrets - Witch Trials of 1692 (USA)	en	BWIE
+Hidden Mysteries - Titanic (Europe)	en	BTZP
+Hidden Mysteries - Titanic - Secrets of the Fateful Voyage (USA)	en	BTZE
+Hidden Mysteries - Vampire Secrets (Europe)	en	BVMP
+Hidden Mysteries - Vampire Secrets (USA)	en	BVME
+Hollands Supermodel - Win de Strijd op de Catwalk! (Netherlands)	nl	YNLX
+Holly Hobbie & Friends (USA)	en	YHFE
+Honeycomb Beat (USA)	en	AH6E
+Hoppie (USA)	en	BW6E
+Horrid Henry's Horrid Adventure (Europe)	en	BR9P
+Horse Life (USA)	en	YHXE
+Hoshigami (Europe)	en	AHKP
+Hoshigami - Ruining Blue Earth - Remix (USA)	en	AHKE
+Hot Wheels - Battle Force 5 (USA)	en	BHOE
+Hot Wheels - Beat That! (Europe)	en	YHWP
+Hot Wheels - Beat That! (USA)	en	YHWE
+Hotel Deluxe (Netherlands)	en	BHLH
+Hotel Dusk - Room 215 (USA)	en	AWIE
+Hotel Transylvania (USA)	en	THVE
+Hotel Transylvania (United Kingdom)	en	THVP
+Hotel for Dogs (USA)	en	CKHE
+How to Pass Your Driving Test (Europe)	en	CHSP
+Hugo - Den forsvundne Kaempe (Denmark)	da	BULQ
+Hugo - Kampen om Krystalkortet (Denmark)	da	BUOQ
+Huis Anubis, Het - De Donkere Strijd (Netherlands)	nl	BNEH
+Huis Anubis, Het - Het Geheim van Osiris (Netherlands)	nl	BHCH
+Huis Anubis, Het - Het Geheim van Osiris (Netherlands) (Rev 1)	nl	BHCH
+Hurry Up Hedgehog! (USA)	en	YHUE
+I Heart Geeks (USA)	en	YJVE
+I Love Babies (USA)	en	YJLE
+I Love Horses (USA)	en	YWDE
+I Love Puppies (USA)	en	BIIE
+I Spy - Castle (USA)	en	B7EE
+I Spy - Fun House (Europe)	en	YP5P
+I Spy - Fun House (USA)	en	YP5E
+I Spy - Game Pack (USA)	en	TGSE
+I Spy - Universe (USA)	en	BIUE
+I'm a Celebrity - Get Me Out of Here! (Europe)	en	BCOP
+Ice Age 2 - The Meltdown (USA)	en	AIAE
+Igor - The Game (USA)	en	CI5E
+Impossible Mission (USA)	en	AITE
+Inazuma Eleven (Europe)	en	YEEP
+Inazuma Eleven 2 - Blizzard (Europe)	en	BEBP
+Inazuma Eleven 2 - Firestorm (Europe)	en	BEEP
+Incredibles, The - Rise of the Underminer (Europe)	en	AICP
+Incredibles, The - Rise of the Underminer (USA)	en	AICE
+Indianapolis 500 Legends (USA)	en	YI5E
+Infinite Space (Europe)	en	C6CP
+Infinite Space (USA)	en	C6CE
+Insecticide (USA)	en	YICE
+Intellivision Lives! (USA)	en	BINE
+Interactive Storybook DS - Series 1 (USA)	en	A5GE
+Interactive Storybook DS - Series 2 (USA)	en	A5HE
+Interactive Storybook DS - Series 3 (USA)	en	A5IE
+InuYasha - Secret of the Divine Jewel (USA)	en	AIYE
+Iron Chef America - Supreme Cuisine (USA)	en	YIAE
+Izuna - Legend of the Unemployed Ninja (USA)	en	AHSE
+Izuna 2 - The Unemployed Ninja Returns (USA)	en	YIZE
+Jacqueline Wilson's Tracy Beaker - The Game (Europe)	en	CWBP
+Jagged Alliance (USA)	en	CJAE
+Jake Hunter - Detective Chronicles (USA)	en	YJGE
+Jake Hunter Detective Story - Memories of the Past (USA)	en	CZ9E
+James Pond - Codename Robocod (USA)	en	AJPE
+Jenga - World Tour (USA)	en	YJEE
+Jeopardy! (USA)	en	BJDE
+Jewel Adventures (Europe)	en	TJMX
+Jewel Link - Arctic Quest (Europe)	en	TQUP
+Jewel Link - Atlantic Quest (Europe)	en	B6QP
+Jewel Link - Galactic Quest (Europe)	en	TJLP
+Jewel Link - Safari Quest (Europe)	en	TJSP
+Jewel Link Double Pack (Europe)	en	TJDP
+Jewel Quest - Expeditions (USA)	en	YJQE
+Jewel Quest - Mysteries (USA)	en	BQYE
+Jewel Quest - Mysteries - Curse of the Emerald Tear (Europe)	en	BJYP
+Jewel Quest - Mysteries - Curse of the Emerald Tear (Europe) (Rev 1)	en	BJYP
+Jewel Quest - Solitaire - Solitaire with a Twist! (Europe)	en	CNAP
+Jewel Quest - Solitaire Trio (Europe)	en	CNAW
+John Deere - Harvest in the Heartland (USA)	en	YJDE
+John Deere - Harvest in the Heartland (USA) (Rev 1)	en	YJDE
+Jonas (USA)	en	C7OE
+Josefiina Alkupolku - Englannin Kieli - Mysteeri Lontoossa (Finland)	fi	BL7X
+Josefiina Alkupolku - Matematiikka - Sumua Lukukylan ylla (Finland)	fi	BP7X
+Josefiina Alkupolku - Seikkailumaa - Unelmien peili (Finland)	fi	CQCX
+Josefin Skolhjaelp - Svenska - Kaos i Kommakoeping (Sweden)	sv	BP8M
+Josefin Skolhjalp - Engelska - Mystery in London (Sweden)	sv	BL7N
+Josefin Skolhjalp - Lar Dig Stava - Stavning eller Kaos (Sweden)	sv	B6PM
+Josefin Skolhjalp och Dromspegeln (Sweden)	sv	CQCM
+Josefine - Hotell Skrotenborg (Norway)	no	B5WN
+Josefine - Jungelskatten (Norway)	no	BN7N
+Josefine Skolehjelp - Engelsk - Mystery in London (Norway)	no	BL7M
+Josefine Skolehjelp - Laer a stave - Staving eller Kaos (Norway)	no	B6PN
+Josefine Skolehjelp - Matematikk - Taake i Tallheimen (Norway)	no	BP7N
+Josefine Skolehjelp - Norsk - Kaos i Kommaby (Norway)	no	BP8N
+Josefine og Droemmespeilet (Norway)	no	CQCN
+Journey to the Center of the Earth (USA)	en	YJCE
+Juiced 2 - Hot Import Nights (USA)	en	YJ2E
+Jumble Madness (USA)	en	CJNE
+JumpStart - Deep Sea Escape (USA)	en	BVJE
+JumpStart - Legend of Lost Island (USA)	en	BVHE
+Junior Brain Trainer - Math Edition (USA)	en	B2EE
+Junior Brain Trainer - Maths Edition (Europe)	en	B2EP
+Junior Classic Books & Fairytales (USA)	en	BBQE
+Junior Classic Books (Europe)	en	BBQP
+Junior Island Adventure (USA)	en	BYAE
+Justice League Heroes (USA)	en	AJLE
+K3 Fashion Party (Netherlands)	en	TK3H
+K3 Karaoke (Netherlands)	en	TKAH
+K3 en de Vrolijke Noten (Netherlands)	nl	BNFH
+K3 en het IJsprinsesje (Netherlands)	en	YYIH
+Kameleon (Europe)	en	ABKP
+Kids Learn & Play - Pets & Vets Bundle (USA)	en	TMTE
+Kids Learn - 2Think - A+ Edition (USA)	en	BTHE
+Kids Learn - Math - A+ Edition (USA)	en	BSME
+Kids Learn - Math and Spelling Bundle (USA)	en	TKLE
+Kids Learn - Spelling and Grammar - A+ Edition (USA)	en	BSPE
+Kids Learn Music - A+ Edition (USA) (NDSi Enhanced)	en	VM4E
+Kirby - Canvas Curse (USA)	en	ATKE
+Kirby - Squeak Squad (USA)	en	AKWE
+Kirby Super Star Ultra (USA)	en	YKWE
+Knights in the Nightmare (USA)	en	CKNE
+Kolonisten van Catan, De (Netherlands)	nl	CN7H
+Konductra (USA)	en	AQTE
+Korg DS-10 Synthesizer (USA)	en	YJ9E
+Korg DS-10+ Synthesizer (USA) (NDSi Enhanced)	en	VKGE
+Kung Fu Panda (Europe)	en	YKFP
+Kung Fu Panda (Netherlands)	nl	YKFH
+Kung Fu Panda (Sweden)	sv	YKFM
+Kung Fu Panda (USA)	en	YKFE
+Kung Zhu (Europe)	en	B3KP
+Kung Zhu (USA)	en	B3KE
+Kurupoto - Cool Cool Stars (USA)	en	AQBE
+L.O.L. (USA)	en	YK6E
+LEGO Star Wars - The Complete Saga (USA)	en	YLGE
+LEGO Star Wars II - The Original Trilogy (USA)	en	AL7E
+LEGO Star Wars II - The Original Trilogy (USA) (Rev 1)	en	AL7E
+LEGO The Lord of the Rings (USA) (En,Fr,Es-XL,Pt-BR)	en	TLRW
+Labyrinth (USA)	en	ACME
+Lalaloopsy - Carnival of Friends (USA)	en	TLLE
+Learn Chess (USA)	en	YSCE
+Learn Science (USA)	en	BSSE
+Learn with Pokemon - Typing Adventure (Europe)	en	UZPP
+Learning To Spell (USA)	en	BSJE
+Left Brain, Right Brain - Use Both Hands, Train Both Sides (USA)	en	YLRE
+Left Brain, Right Brain 2 (USA)	en	CKBE
+Legacy of Ys - Books I & II (USA)	en	CYEE
+Legend of Spyro, The - A New Beginning (USA)	en	A6SE
+Legend of Spyro, The - The Eternal Night (USA)	en	A6TE
+Legend of Zelda, The - Twilight Princess - Preview Trailer (USA) (Promo)	en	AZDE
+Legendary Starfy, The (USA)	en	YSSE
+Let's Ride - Friends Forever (USA)	en	YB5E
+LifeSigns - Surgical Unit (USA)	en	AK2E
+Line Rider 2 - Unbound (USA)	en	CLRE
+Lingo Deluxe (Netherlands)	nl	B67H
+Lingo met Lucille Werner (Netherlands)	nl	B5LH
+Lingo voor Kinderen (Netherlands)	nl	BIZH
+Lionel Trains - On Track (USA)	en	ALTE
+Little Charley Bear - Toybox of Fun (Europe)	en	B68P
+Little League World Series Baseball - Double Play (USA)	en	BB8E
+Little League World Series Baseball 2008 (USA)	en	CLHE
+Little League World Series Baseball 2009 (USA)	en	C7BE
+Little Red Riding Hood's Zombie BBQ (USA)	en	CZQE
+Looney Tunes - Duck Amuck (USA)	en	ALYE
+Looney Tunes - Duck Amuck (United Kingdom)	en	ALYP
+Lost in Blue (USA)	en	ASKE
+Lost in Blue 3 (USA)	en	YL3E
+Loving Life with Hello Kitty & Friends (USA)	en	B3YE
+Lufia - Curse of the Sinistrals (USA)	en	BSDE
+Luminous Arc (Europe)	en	ANIP
+Luminous Arc (USA)	en	ANIE
+Luminous Arc 2 (Europe)	en	YL2P
+Luminous Arc 2 (USA)	en	YL2E
+Lunar - Dragon Song (USA)	en	ALNE
+Lunar - Genesis (Europe)	en	ALUP
+Lux-Pain (Europe)	en	A3IP
+Lux-Pain (USA)	en	A3IE
+Luxor - Pharaoh's Challenge (USA)	en	YLXE
+M&M's - Adventure (USA)	en	CMXE
+M&M's - Break 'em (USA)	en	A2VE
+M&M's - Break 'em (USA) (Rev 1)	en	A2VE
+M&M's - Kart Racing (USA)	en	YMZE
+M&M's - Kart Racing (USA) (Rev 1)	en	YMZE
+MLB Power Pros 2008 (USA)	en	CPPE
+MX vs. ATV Untamed (Europe)	en	YATP
+MX vs. ATV Untamed (USA)	en	YATE
+Madagascar (Europe)	en	AMGP
+Madagascar (Netherlands)	nl	AMGH
+Madagascar (USA)	en	AMGE
+Madagascar - Escape 2 Africa (USA)	en	CMGE
+Madagascar - Escape 2 Africa (United Kingdom)	en	CMGP
+Madagascar 2 (Netherlands)	nl	CMGH
+Madagascar 2 (Sweden)	sv	CMGM
+Madden NFL 06 (Europe)	en	AM6P
+Madden NFL 06 (USA)	en	AM6E
+Madden NFL 07 (Europe)	en	ANFP
+Madden NFL 07 (USA)	en	ANFE
+Madden NFL 08 (Europe)	en	A5UP
+Madden NFL 08 (USA)	en	A5UE
+Madden NFL 09 (Europe)	en	CMDP
+Madden NFL 09 (USA)	en	CMDE
+Madden NFL 09 (USA) (Rev 1)	en	CMDE
+Madden NFL 2005 (USA)	en	AMDE
+Mage Knight - Destiny's Soldier (USA)	en	AMPE
+Magic School Bus, The - Oceans (USA)	en	B7FE
+Magical Starsign (USA)	en	AVCE
+Magical Zhu Zhu Princess - Carriages and Castles (USA)	en	BZHE
+Magnetica (USA)	en	APLE
+Mah Jong Quest - Expeditions (USA)	en	YMXE
+Mahjong Mysteries - Ancient Egypt (Europe)	en,fr,es,it	BMVX
+Mahjongg Mysteries - Ancient Egypt (USA)	en	BMVE
+Major League Baseball 2K10 (USA)	en	BLAE
+Major League Baseball 2K11 (USA)	en	BZVE
+Major League Baseball 2K12 (USA)	en	TMLE
+Major League Baseball 2K7 (USA)	en	AL6E
+Mama's Combo Pack - Volume 1 (USA)	en	TCYE
+Mama's Combo Pack - Volume 2 (USA)	en	TCZE
+Manaphy Distribution 2007 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y44E
+March of the Penguins (USA)	en	AQLE
+Mario & Luigi - Partners in Time (USA)	en	ARME
+Mario & Luigi - Partners in Time (USA) (Rev 1)	en	ARME
+Mario Hoops 3 on 3 (USA)	en	AB3E
+Mario Party DS (USA)	en	A8TE
+Mario Party DS (USA) (Rev 1)	en	A8TE
+Mario Party DS (USA) (Rev 2)	en	A8TE
+Mario vs. Donkey Kong 2 - March of the Minis (USA)	en	AMQE
+Marker Man Adventures (USA)	en	BMKE
+Marvel - Ultimate Alliance 2 (Europe)	en	C4MP
+Marvel - Ultimate Alliance 2 (USA)	en	C4ME
+Marvel Nemesis - Rise of the Imperfects (USA)	en	AMVE
+Marvel Trading Card Game (USA)	en	AMLE
+Master Jin Jin's IQ Challenge (USA)	en	AJNE
+Master of Illusion (USA, Australia)	en	AJQE
+Master of the Monster Lair (USA)	en	YLDE
+Math Blaster in the Prime Adventure (USA)	en	CKXE
+Math Play (USA)	en	AECE
+Math Play (USA) (Rev 1)	en	AECE
+May's Mysteries - The Secret of Dragonville (Europe) (B8HP)	en	B8HP
+May's Mysteries - The Secret of Dragonville (Europe) (B8HX)	en	B8HX
+May's Mystery - Forbidden Memories (USA)	en	B8HE
+Mazes of Fate DS (USA)	en	YMFE
+MechAssault - Phantom War (USA)	en	AEAE
+Mechanic Master 2 (USA)	en	CZ2E
+Meet the Robinsons (USA)	en	ARNE
+Mega Brain Boost (USA)	en	YM2E
+Mega Man Battle Network 5 - Double Team DS (USA)	en	A5TE
+Mega Man Star Force - Dragon (USA)	en	A6CE
+Mega Man Star Force - Leo (USA)	en	A6BE
+Mega Man Star Force - Pegasus (USA)	en	A6AE
+Mega Man Star Force 2 - Zerker x Ninja (USA)	en	YRVE
+Mega Man Star Force 2 - Zerker x Saurian (USA)	en	YRWE
+Mega Man Star Force 3 - Black Ace (USA)	en	CRBE
+Mega Man Star Force 3 - Red Joker (USA)	en	CRRE
+Mega Man ZX (USA)	en	ARZE
+Mega Man ZX - Advent (USA)	en	YZXE
+Mega Man Zero Collection (Europe)	en	B6ZP
+Mega Man Zero Collection (USA)	en	B6ZE
+Merlin - A Servant of Two Masters (Europe)	en	TMWP
+Metal Slug 7 (USA)	en	YM7E
+Meteos (USA)	en	AMTE
+Meteos - Disney Magic (USA)	en	ADZE
+Metroid Prime - Hunters (USA) (Rev 1)	en	AMHE
+Metroid Prime - Hunters (USA, Australia)	en	AMHE
+Metroid Prime Pinball (USA)	en	AP2E
+Mi Experto en Frances - Mejora Tu Vocabulario Frances (Mexico)	es	YQGE
+Mi Experto en Ingles - Mejora Tu Vocabulario Ingles (Mexico)	es	YQIE
+Mi Experto en Vocabulario (Mexico)	es	YEPE
+Micro Machines V4 (USA)	en	AMWE
+Midnight Mysteries - The Edgar Allan Poe Conspiracy (USA)	en	B4ME
+Mimi's Party Fun! (USA)	en	BH8E
+Mini RC Rally (USA)	en	ARCE
+Mission Runway (USA)	en	YNLE
+Mon Coach Personnel - J'Ameliore Mon Anglais (Canada) (Fr-CA)	en,fr	YQAE
+Mon Coach Personnel - J'Ameliore Mon Espagnol (Canada) (Fr-CA)	fr	YQEE
+Mon Coach Personnel - J'Enrichis Mon Vocabulaire (Canada) (Fr-CA)	fr	YVCE
+Monster Bomber (USA)	en	AB9E
+Monster House (United Kingdom)	en	AM8P
+Monster Jam (Europe)	en	YMOP
+Monster Jam (USA)	en	YMOE
+Monster Mayhem - Build and Battle (USA)	en	CVNE
+Monster Puzzle (Europe)	en	ADPP
+Monster Rancher DS (USA)	en	CFME
+Monster Tale (USA)	en	BIHE
+Monster Trucks DS (USA)	en	AMXE
+Moon (USA)	en	COOE
+Moshi Monsters - Katsuma Unleashed (Europe)	en	TLVP
+Moshi Monsters - Katsuma Unleashed (USA)	en	TLVE
+Moshi Monsters - Moshling Zoo (Europe)	en	B66P
+Moshi Monsters - Moshling Zoo (USA)	en	B66E
+Moshi Monsters - Moshlings Theme Park (Europe)	en	TMNP
+Moshi Monsters - Moshlings Theme Park (USA)	en	TMNE
+Moxie Girlz (USA) (NDSi Enhanced)	en	VMGE
+Mr. Driller - Drill Spirits (Europe)	en	ADRP
+Mr. Driller - Drill Spirits (USA)	en	ADRE
+My Amusement Park (USA)	en	BAJE
+My Chinese Coach - Learn a New Language (USA)	en	CNYE
+My Cooking Coach - Prepare Healthy Recipes (Europe) (NDSi Enhanced)	en	VCKV
+My Dress-Up (USA)	en	CDUE
+My French Coach - Learn a New Language (USA)	en	YIFE
+My French Coach - Level 1 - Learn to Speak French (Europe)	en	YIFP
+My French Coach - Level 2 - Improve Your French (Europe)	en	YQFP
+My Frogger - Toy Trials (USA)	en	AFRE
+My Healthy Cooking Coach - Easy Way to Cook Healthy (USA) (NDSi Enhanced)	en	VCKE
+My Hero - Doctor (USA)	en	CHCE
+My Hero - Firefighter (USA)	en	CHOE
+My Japanese Coach - Learn a New Language (USA)	en	CJCE
+My Japanese Coach - Learn to Speak Japanese (Europe)	en	CJCP
+My Little Pony - Pinkie Pie's Party (USA)	en	YUHE
+My Make-Up (USA)	en	CMUE
+My Pet Chimp (USA)	en	BCQE
+My Reading Tutor (USA)	en	BJJE
+My SAT Coach with The Princeton Review - Crack the SAT (USA)	en	CBSE
+My Secret Diary (USA)	en	CCDE
+My Spanish Coach - Learn a New Language (USA)	en	YISE
+My Spanish Coach - Level 2 - Improve Your Spanish (Europe)	en	YQSP
+My Virtual Tutor - Reading - 1st Grade to 2nd Grade (USA)	en	BMJE
+My Virtual Tutor - Reading - K to 1st Grade (USA)	en	BMME
+My Virtual Tutor - Reading - Pre-K to Kindergarten (USA)	en	BMLE
+My Word Coach - Develop Your Vocabulary (Europe)	en	AZYP
+My Word Coach - Improve Your Vocabulary (USA)	en	AZYE
+My Word Coach - Verbeter Je Woordenschat (Netherlands)	nl	YWYH
+My Word Coach Junior - Woordjes Leren (Netherlands)	nl	CYCH
+My World, My Way (USA)	en	YFME
+Mysterious Case of Dr. Jekyll & Mr. Hyde, The (Europe)	en	BJHP
+Mysterious Case of Dr. Jekyll & Mr. Hyde, The (USA)	en	B5ME
+Mystery Detective (Europe)	en	AOZP
+Mystery Dungeon - Shiren the Wanderer (Europe)	en	AFUP
+Mystery Dungeon - Shiren the Wanderer (USA)	en	AFUE
+Mystery P.I. - Portrait of a Thief (USA)	en	CYIE
+Mystery Stories - Curse of the Ancient Spirits (Europe)	en	BXCX
+Mystery Tales - Time Travel (USA)	en	BMGE
+N+ (USA)	en	YNXE
+NRL Mascot Mania (Australia)	en	CQKP
+Nacho Libre (USA)	en	ANLE
+Naked Brothers Band, The - The Video Game (Europe)	en	CNBP
+Naked Brothers Band, The - The Video Game (USA)	en	CNBE
+Namco Museum DS (USA)	en	YNME
+Nancy Drew - The Deadly Secret of Olde World Park (USA)	en	YNWE
+Nancy Drew - The Hidden Staircase (USA)	en	YIRE
+Nancy Drew - The Model Mysteries (Europe)	en	BNAP
+Nancy Drew - The Model Mysteries (USA)	en	BNAE
+Nancy Drew - The Mystery of the Clue Bender Society (USA)	en	CNME
+Nanostray (USA)	en	ANSE
+Nanostray 2 (USA)	en	ANXE
+Napoleon Dynamite - The Game (USA)	en	YNDE
+Naruto - Ninja Council 3 (USA)	en	AN4E
+Naruto - Path of the Ninja (USA)	en	YN5E
+Naruto Shippuden - Naruto vs Sasuke (USA)	en	CNSE
+Naruto Shippuden - Ninja Destiny 2 (USA)	en	CNRE
+Naruto Shippuden - Shinobi Rumble!! (USA)	en	BNXE
+Need for Speed - Most Wanted (USA)	en	ANWE
+Neopets Puzzle Adventure (USA)	en	C3PE
+New Super Mario Bros. (USA, Australia)	en	A2DE
+New Touch Party Game (Europe)	en	AWQP
+New York Times Crosswords, The (Europe)	en	AYYP
+New York Times Crosswords, The (USA)	en	AYYE
+Ni Hao, Kai-Lan - New Year's Celebration (Europe)	en	BHBP
+Ni Hao, Kai-Lan - New Year's Celebration (USA)	en	BHBE
+Nickelodeon Team - Umizoomi (Europe)	en	B55P
+Nickelodeon Team - Umizoomi (USA)	en	B55E
+Nickelodeon Team Umizoomi and Dora's Fantastic Flight (USA)	en	TDUE
+Nicktoons - Attack of the Toybots (USA)	en	YAYE
+Nicktoons - Attack of the Toybots (United Kingdom)	en	YAYP
+Nicktoons - Battle for Volcano Island (USA)	en	AVKE
+Nicktoons MLB (USA)	en	B84E
+Nicktoons MLB (USA) (Rev 1)	en	B84E
+Nicktoons Unite! (USA)	en	ANUE
+Night at the Museum - Battle of the Smithsonian - The Video Game (USA)	en	BNME
+Nine Hours, Nine Persons, Nine Doors (USA)	en	BSKE
+Ninja Gaiden - Dragon Sword (USA)	en	YNGE
+Ninjatown (USA)	en	CNJE
+Nintendo Presents - Crossword Collection (Europe)	en	YCUP
+Nintendogs - Best Friends (USA)	en	AD5E
+Nintendogs - Chihuahua & Friends (USA)	en	AD2E
+Nintendogs - Dachshund & Friends (USA)	en	ADGE
+Nintendogs - Jack Russell Relay Mode (Europe) (Kiosk)	en	YD4P
+Nintendogs - Lab & Friends (USA, Australia)	en	AD3E
+Noddy in Toyland (Europe)	en	B2ZP
+Nostalgia (USA)	en	CJKE
+Nursery Mania (USA)	en	BNSE
+OK! - First for Celebrity News - Puzzle Stars (Europe)	en	BUSP
+OMG 26 - Our Mini Games (USA)	en	YMVE
+Okamiden (Europe)	en	BOOP
+Okamiden (USA)	en	BOOE
+One Piece - Gigant Battle! (Europe)	en	BOJP
+Ontamarama (USA)	en	AO6E
+Operation - Vietnam (USA)	en	YVTE
+Original Frisbee Disc Sports - Ultimate & Golf (USA)	en	AFBE
+Orla Froesnapper (Denmark)	da	BYCQ
+Our House (USA)	en	CYHE
+Over the Hedge (Europe)	en	AH5P
+Over the Hedge (USA)	en	AH5E
+Over the Hedge - Beesten bij de Buren (Netherlands)	nl	AH5H
+Over the Hedge - Hammy Goes Nuts! (Europe)	en	AVHP
+Over the Hedge - Hammy Goes Nuts! (USA)	en	AVHE
+Pac'n Roll (USA)	en	APNE
+Pac-Man World 3 (Europe)	en	APWP
+Pac-Man World 3 (USA)	en	APWE
+Pac-Pix (USA)	en	APCE
+Party Carnival (Europe)	en	AZPP
+Pass Your Driving Theory Test - 2010 Edition (Europe)	en	BT9P
+Pass the Pigs - Let the Good Swines Roll! (Europe)	en	CPAP
+Pass the Pigs - Let the Good Swines Roll! (USA)	en	CPAE
+Pawly Pets - My Vet Practice (Europe)	en	AQVX
+Paws & Claws - Best Friends - Dogs & Cats (USA)	en	AHJE
+Paws & Claws - Marine Rescue (USA) (NDSi Enhanced)	en	VMEE
+Paws & Claws - Pampered Pets (USA)	en	CPZE
+Paws & Claws - Pampered Pets 2 (USA) (NDSi Enhanced)	en	VTIE
+Paws & Claws - Pet Resort (USA)	en	AQ2E
+Paws & Claws - Pet Vet (USA)	en	AQVE
+Paws & Claws - Pet Vet - Australian Adventures (USA)	en	CTDE
+Paws & Claws - Pet Vet 2 (USA)	en	YMUE
+Paws & Claws - Regal Resort (USA)	en	BMYE
+Peggle Dual Shot (USA)	en	C7PE
+Peppa Pig - Fun and Games (Europe)	en	BPIP
+Peppa Pig - The Game (Europe)	en	CUPP
+Peppa Pig - Theme Park Fun (Europe)	en	BZPP
+Personal Trainer - Cooking (USA)	en	CNVE
+Pet Pals - Animal Doctor (USA)	en	YFPE
+Pet Pals - New Leash on Life (USA)	en	BPQE
+Peter Pan's Playground (Europe)	en	CPNP
+Petz - Dogz Fashion (USA)	en	YNZE
+Petz - Hamsterz Life 2 (USA)	en	AH3E
+Phantasy Star 0 (Europe)	en,fr,de,es,it	C24P
+Phantasy Star 0 (USA)	en	C24E
+Phil Taylor's Power Play Darts (Europe) (Rev 1)	en	B26P
+Phineas and Ferb (USA)	en	CFPE
+Phineas and Ferb - Quest for Cool Stuff (USA)	en	TPFE
+Phoenix Wright - Ace Attorney (USA)	en	AGYE
+Phoenix Wright - Ace Attorney - Justice for All (USA)	en	A2GE
+Phoenix Wright - Ace Attorney - Trials and Tribulations (Europe)	en,fr,de	YG3P
+Phoenix Wright - Ace Attorney - Trials and Tribulations (USA)	en	YG3E
+Pic Pic (Europe)	en	YPXP
+Pichu-Jirachi Distribution 2010 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y7YE
+Pillow Pets (USA)	en	B5HE
+Ping Pals (USA)	en	APPE
+Ping Pals (United Kingdom)	en	APPP
+Pinkalicious - It's Party Time! (USA)	en	BXDE
+Pirates - Duels on the High Seas (USA)	en	YP8E
+Piraty Karibskogo Morja - Na Kraju Sveta (Russia)	ru	AW3R
+Pixeline - Hotel Skrottenborg (Denmark)	da	B5WQ
+Pixeline - Jungleskatten (Denmark)	da	BQ7Q
+Pixeline - Magi i Pixieland (Denmark)	da	BPXQ
+Pixeline - Skole-Hjaelp - Laer at Stave - Stavning eller Kaos (Denmark)	da	B6PQ
+Pixeline - Skole-hjaelp - Engelsk - Goes to London (Denmark)	da	BL7Q
+Pixeline - Skole-hjaelp - Matematik - Taager over Talstrup (Denmark)	da	BP7Q
+Pixeline og Droemmespejlet (Denmark)	da	CQCQ
+Planet Puzzle League (USA)	en	A8NE
+Plants vs. Zombies (Australia)	en	BWBU
+Plants vs. Zombies (USA)	en	BWBE
+Plants vs. Zombies (United Kingdom)	en	BWBP
+Plop en de Pinguin (Netherlands)	nl	YEYH
+Plushees (USA)	en	YOPE
+Pogo Island (Europe)	en	AO3P
+Pogo Island (USA)	en	AO3E
+Point Blank DS (USA)	en	AGLE
+Pokemon - Black Version (USA, Europe) (NDSi Enhanced)	en	IRBO
+Pokemon - Black Version 2 (USA, Europe) (NDSi Enhanced)	en	IREO
+Pokemon - Diamond Version (Europe) (Rev 5)	en	ADAE
+Pokemon - Diamond Version (USA) (Rev 5)	en	ADAE
+Pokemon - HeartGold Version (Europe)	en	IPKE
+Pokemon - HeartGold Version (USA)	en	IPKE
+Pokemon - Pearl Version (Europe) (Rev 5)	en	APAE
+Pokemon - Pearl Version (USA) (Rev 5)	en	APAE
+Pokemon - Platinum Version (Europe)	en	CPUE
+Pokemon - Platinum Version (USA)	en	CPUE
+Pokemon - Platinum Version (USA) (Rev 1)	en	CPUE
+Pokemon - SoulSilver Version (Europe)	en	IPGE
+Pokemon - SoulSilver Version (USA, Australia)	en	IPGE
+Pokemon - White Version (USA, Europe) (NDSi Enhanced)	en	IRAO
+Pokemon - White Version 2 (USA, Europe) (NDSi Enhanced)	en	IRDO
+Pokemon Conquest (Europe) (NDSi Enhanced)	en	VPYP
+Pokemon Conquest (USA, Australia) (NDSi Enhanced)	en	VPYT
+Pokemon Conquest (USA, Australia) (Rev 1) (NDSi Enhanced)	en	VPYT
+Pokemon Dash (USA)	en	APDE
+Pokemon Mystery Dungeon - Blue Rescue Team (USA, Australia)	en	APHE
+Pokemon Mystery Dungeon - Explorers of Darkness (USA)	en	YFYE
+Pokemon Mystery Dungeon - Explorers of Sky (USA)	en	C2SE
+Pokemon Mystery Dungeon - Explorers of Time (USA)	en	YFTE
+Pokemon Ranger (USA)	en	ARGE
+Pokemon Ranger - Guardian Signs (USA, Australia)	en	B3RE
+Pokemon Ranger - Shadows of Almia (USA)	en	YP2E
+Pokemon Trozei! (USA)	en	APTE
+PokerDome Poker Master - No Limit Texas Hold'em Poker (Australia)	en	YJPU
+Polar Bowler (USA)	en	YPNE
+Polarium (USA, Australia)	en	ASNE
+Pop Cutie! - Street Fashion Simulation (USA)	en	CQTE
+Poptropica Adventures (Europe)	en	TPUP
+Populous DS (USA)	en	YPOE
+Postcode Loterij Een tegen 100 (Netherlands)	nl	CTQH
+Postman Pat - Special Delivery Service (Europe)	en	CU8P
+Power Play Pool (USA)	en	AOWE
+Powerbike (USA)	en	C2BE
+Powerplay Tennis (USA)	en	AXTE
+Press Your Luck - 2010 Edition (USA)	en	BP6E
+Prey the Stars (USA)	en	A2OE
+Princess Debut (USA)	en	YROE
+Princess Isabella - A Witch's Curse (USA)	en	BIWE
+Princess Isabella - Witch's Curse (Europe)	en	BIWP
+Princess Natasha - Student, Secret Agent, Princess (USA)	en	AN8E
+Professional Fisherman's Tour - Northern Hemisphere (USA)	en	AV8E
+Professor Brainium's Games (USA)	en	AQEE
+Professor Layton and Pandora's Box (Europe)	en	YLTP
+Professor Layton and the Curious Village (USA, Australia)	en	A5FE
+Professor Layton and the Diabolical Box (USA)	en	YLTE
+Professor Layton and the Last Specter (USA)	en	BLFE
+Professor Layton and the Lost Future (Europe)	en	C3JP
+Professor Layton and the Spectre's Call (Europe)	en	BLFP
+Professor Layton and the Unwound Future (USA)	en	C3JE
+Professor Layton en de Doos van Pandora (Netherlands)	nl	YLTH
+Professor Layton en de Melodie van het Spook (Netherlands)	nl	BLFH
+Professor Layton en de Verloren Toekomst (Netherlands)	nl	C3JH
+Pucca - Power Up (USA)	en	BKQE
+Puchi Puchi Virus (USA)	en	APVE
+Puppy Luv - Spa and Resort (Europe)	en	YPLP
+Puppy Luv - Spa and Resort (USA)	en	YPLE
+Purr Pals (USA)	en	AQ9E
+Puzzle City (USA)	en	CCCE
+Puzzle Expedition (USA)	en	BEXE
+Puzzle Quest - Challenge of the Warlords (Europe)	en	AQWP
+Puzzle Quest - Challenge of the Warlords (USA)	en	AQWE
+Puzzle Time (USA)	en	B5TE
+Puzzle de Harvest Moon (USA)	en	YPHE
+Puzzler Collection (Europe)	en,fr,de,es,it	CPCP
+Puzzler Collection (USA)	en	CPCE
+Puzzler World (Europe)	en,fr,de,es,it	BPVP
+Puzzler World (Europe) (Rev 1)	en,fr,de,es,it	BPVP
+Puzzler World (USA)	en	BPVE
+Puzzler World 2 (USA)	en	BVEE
+Puzzler World 2011 (Europe)	en,fr,de,es,it	BVEP
+Puzzler World 2012 (Europe)	en	TPWP
+Quest Braintainment (Netherlands)	nl	BQEH
+Quest Trio, The (Europe)	en	CQEP
+Quest Trio, The - Jewels, Cards and Tiles (USA)	en	CQEE
+QuickSpot (USA)	en	AM7E
+Raa Raa the Noisy Lion (Europe)	en	TRAP
+Radiant Historia (USA)	en	BRJE
+Ragnarok DS (USA)	en	YRBE
+Raikou-Entei-Suicune-Celebi Distribution 2011 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y8PE
+Rain Drops (USA)	en	YFWE
+Rainbow Islands Revolution (Europe)	en	ARIP
+Rainbow Islands Revolution (USA)	en	ARIE
+Rapala Pro Bass Fishing (USA)	en	B4RE
+Ratatouille (Europe)	en	ALWU
+Ratatouille (USA)	en	ALWE
+Ratatouille - Food Frenzy (USA)	en	YRLE
+Reader Rabbit - Kindergarten (USA)	en	CR5E
+Ready Steady Cook - The Game (United Kingdom)	en	CRNP
+Real Crimes - Jack the Ripper (Europe)	en	BJ5P
+Real Time Conflict - Shogun Empires (USA)	en	ASWE
+Rec Room Games (USA)	en	BZRE
+Resident Evil - Deadly Silence (USA)	en	ABHE
+Retro Arcade Toppers (Europe)	en	BNZP
+Retro Atari Classics (USA, Europe)	en	ATAE
+Retro Game Challenge (USA)	en	YCXE
+Reversal Challenge (USA)	en	YSWE
+Rhapsody - A Musical Adventure (USA)	en	CM6E
+Rhythm 'n Notes - Improve Your Music Skills (USA)	en	ANKE
+Rhythm Heaven (USA)	en	YLZE
+Ridge Racer DS (USA, Europe)	en	ARRE
+Riding Academy 2 (USA)	en	CJXE
+Ringling Bros. and Barnum & Bailey - Circus Friends - Asian Elephants (USA)	en	BRLE
+River City - Soccer Hooligans (USA)	en	B3XE
+River City - Super Sports Challenge (USA)	en	BUDE
+River King - Mystic Valley (USA)	en	ANYE
+Road to Vegas (Europe)	en	CRVP
+Roary the Racing Car (United Kingdom)	en	C7RP
+Roary the Racing Car (United Kingdom) (Rev 1)	en	C7RP
+Robbie Konijn - Leer Lezen en Schrijven (Netherlands)	nl	YE4H
+Robocalypse (USA)	en	CYSE
+Robots (USA)	en	ARBE
+Rock Blast (USA)	en	YCGE
+Rockin' Pretty (USA)	en	CV5E
+Rollin' Rascals (USA)	en	CPLE
+Rondo of Swords (USA)	en	AFAE
+Rudolph - The Red-Nosed Reindeer (USA)	en	BRUE
+Rune Factory - A Fantasy Harvest Moon (USA)	en	ARFE
+Rune Factory 2 - A Fantasy Harvest Moon (USA)	en	A6NE
+Rune Factory 3 - A Fantasy Harvest Moon (Europe)	en	BRFP
+Rune Factory 3 - A Fantasy Harvest Moon (USA)	en	BRFE
+SBK - Snowboard Kids (USA)	en	ASBE
+SEGA Presents - Touch Darts (Europe)	en	A4ZP
+SNK vs. Capcom - Card Fighters DS (USA)	en	AVSE
+SNK vs. Capcom - Card Fighters DS (USA) (Rev 1)	en	AVSE
+Safari Adventures - Africa (USA)	en	CSAE
+Sally's Salon (USA)	en	CSIE
+Samantha Swift and the Hidden Roses of Athena (USA)	en	BHRE
+Sands of Destruction (USA)	en	YSLE
+Santa Claus is Comin' to Town (USA)	en	BX7E
+Satisfashion - Rock the Runway (USA)	en	BS5E
+Scooby-Doo! - Who's Watching Who (Europe)	en	AC6P
+Scooby-Doo! - Who's Watching Who (USA)	en	AC6E
+Scrabble - Crossword Game (USA)	en	CVXE
+Scribblenauts Collection (USA)	en	TCSE
+Scripps Spelling Bee (USA) (NDSi Enhanced)	en	VSPE
+Sea Monsters - A Prehistoric Adventure (USA)	en	YS3E
+Sea Park Tycoon (USA)	en	C6TE
+Secret Egg Distribution 2011 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y82E
+Secret Key Distribution 2009 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y58E
+Sesame Street - Ready, Set, Grover! (Australia)	en	BYTU
+Shamu's Deep Sea Adventures (Europe)	en	ABAP
+Shamu's Deep Sea Adventures (USA)	en	ABAE
+Shane Watson's Power Play Cricket 2011 (Australia)	en	BCEU
+Shaymin-Regigigas Distribution 2009 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y6OE
+Shepherd's Crossing 2 DS (USA)	en	BE2E
+Shin Megami Tensei - Devil Survivor (USA)	en	CVIE
+Shin Megami Tensei - Devil Survivor 2 (Europe)	en	TDVP
+Shin Megami Tensei - Devil Survivor 2 (USA)	en	TDVE
+Shin Megami Tensei - Strange Journey (USA)	en	BMTE
+Shining Stars - Super Starcade (USA)	en	CS2E
+Shiny Dialga-Palkia-Giratina Distribution 2013 (USA) (Wi-Fi Kiosk) (Save Data)	en	Y9OE
+Showtime Championship Boxing (USA)	en	YSYE
+Shrek - Ogres & Dronkeys (Netherlands)	nl	YQ3H
+Shrek - Ogres & Dronkeys (USA)	en	YQ3E
+Shrek - Ogres & Dronkeys (United Kingdom)	en	YQ3P
+Shrek - Smash n' Crash Racing (USA)	en	A4IE
+Shrek - Super Slam (USA)	en	AS3E
+Shrek de Derde (Netherlands)	nl	A3SH
+Shrek the Third (Europe)	en	A3SP
+Shrek the Third (USA)	en	A3SE
+Sideswiped (USA)	en	BCLE
+Silke - Pixelines Lillesoester - Hoensefoedder og Guleroedder (Denmark)	da	BLXQ
+Silverlicious (USA)	en	TASE
+Simpsons Game, The (Europe)	en	YSZP
+Simpsons Game, The (USA)	en	YSZE
+Slingo Quest (USA)	en	CSLE
+Smart Boy's Gameroom (USA)	en	A2HE
+Smart Boy's Gameroom 2 (USA)	en	BS3E
+Smart Boy's Toys Club (USA)	en	CSXE
+Smart Boy's Winter Wonderland (USA)	en	YITE
+Smart Girl's Magical Book Club (USA)	en	YI8E
+Smart Girl's Party Game (USA)	en	CSYE
+Smart Girl's Playhouse (USA)	en	A2IE
+Smart Girl's Playhouse 2 (USA)	en	BS4E
+Smart Girl's Playhouse Party (USA)	en	BG7E
+Smart Girl's Winter Wonderland (USA)	en	CWIE
+Smart Kid's Gameclub (USA)	en	YIDE
+Smart Kid's Mega Game Mix (USA)	en	BS2E
+Smart Kid's Party Fun Pak (USA)	en	CSZE
+Snood 2 - On Vacation (USA)	en	ASVE
+Sofie - Josefines Lillesoester - Hoensefoetter og Guleroetter (Norway)	no	BLXN
+Sofie - Josefines Lillesoester - Syng, Lek og Laer (Norway)	no	BLYN
+Solitaire Overload (USA)	en	YOVE
+Spanish for Everyone! (USA)	en	YSHE
+Spectral Force - Genesis (Europe)	en,fr,de,es,it	YW4P
+Spectral Force - Genesis (USA)	en	YW4E
+Spectrobes - Beyond the Portals (USA)	en	YV4E
+Spelling Challenges and More! (USA)	en	AQ5E
+Spider-Man - Battle for New York (Europe)	en	AC9P
+Spider-Man - Battle for New York (USA)	en	AC9E
+Spider-Man - Friend or Foe (Europe)	en	YSFP
+Spider-Man - Friend or Foe (USA)	en	YSFE
+Spider-Man 2 (Europe)	en	AS2P
+Spider-Man 2 (USA)	en	AS2E
+Spider-Man 3 (USA)	en	AQ3E
+Spider-Man 3 (United Kingdom)	en	AQ3P
+Spitfire Heroes - Tales of the Royal Air Force (USA)	en	YRAE
+SpongeBob SquarePants - Creature from the Krusty Krab (USA)	en	AQ4E
+SpongeBob SquarePants - The Yellow Avenger (Europe)	en	AS9P
+SpongeBob SquarePants - The Yellow Avenger (USA)	en	AS9E
+SpongeBob's Atlantis SquarePantis (USA)	en	AL3E
+SpongeBob's Boating Bash (USA) (NDSi Enhanced)	en	VBVE
+SpongeBob's Truth or Square (USA)	en	BSOE
+Sprung - A Game Where Everyone Scores (USA)	en	ACRE
+Sprung - The Dating Game (Europe)	en	ACRP
+Spy Kids - All the Time in the World (USA)	en	B7YE
+Spyro - Shadow Legacy (USA)	en	ASSE
+Squeeballs Party (USA)	en	BSVE
+Squinkies - Surprize Inside (USA)	en	BXQE
+Squishy Tank (USA)	en	CYWE
+Star Fox Command (USA, Australia)	en	ASFE
+Star Life (Europe) (Proto)	en,fr,de,es,it,nl,pt,sv,da,no	CPVP
+Star Trek - Tactical Assault (Europe)	en	ATJP
+Star Trek - Tactical Assault (USA)	en	ATJE
+Steal Princess (USA)	en	YP9E
+Steel Horizon (USA)	en	AS4E
+Stitch Jam (USA)	en	BJME
+Story of Noah's Ark, The (USA)	en	BXNE
+Style Savvy (USA)	en	AZLE
+Sudoku Gridmaster (USA)	en	ASQE
+Sudoku Mania - Enhance Your Critical Thinking Skills! (USA)	en	AQME
+Sudokuro - Sudoku & Kakuro Games (USA)	en	AX2E
+Summon Night - Twin Age (USA)	en	AS7E
+Sun, The - Crossword Challenge (Europe)	en	YQWP
+Sun, The - Crossword Challenge (Europe) (Rev 1)	en	YQWP
+Super Black Bass Fishing (USA)	en	AB8E
+Super Collapse! 3 (USA)	en	AULE
+Super Dodgeball Brawlers (USA)	en	YDVE
+Super Fruit Fall (USA)	en	AFTE
+Super Mario 64 DS (USA)	en	ASME
+Super Mario 64 DS (USA, Australia) (Rev 1)	en	ASME
+Super Princess Peach (USA)	en	ASPE
+Super Robot Taisen OG Saga - Endless Frontier (USA)	en	CFRE
+Super Speed Machines (USA)	en	BG6E
+Survivor (USA)	en	YL8E
+Suzuki Super-Bikes II - Riding Challenge (USA)	en	AVBE
+TNA Wrestling Impact! - Cross the Line (USA)	en	BTXE
+Tak - Mojo Mistake (USA)	en	YT4E
+Tak - The Great Juju Challenge (Europe)	en	A3TP
+Tak - The Great Juju Challenge (USA)	en	A3TE
+Take a Break's Puzzle Bonanza (Europe)	en	BVAP
+Take a Break's Puzzle Master (Europe)	en	BPJP
+Tamagotchi Connection - Corner Shop (USA)	en	AG7E
+Tamagotchi Connection - Corner Shop 2 (USA)	en	AG8E
+Tamagotchi Connection - Corner Shop 3 (USA)	en	YT3E
+Tank Beat (USA)	en	AKBE
+Tao's Adventure - Curse of the Demon Seal (USA)	en	ALDE
+Tecmo Bowl - Kickoff (USA)	en	CTBE
+Teenage Mutant Ninja Turtles 3 - Mutant Nightmare (USA)	en	ANJE
+Teenage Zombies - Invasion of the Alien Brain Thingys (USA)	en	YTZE
+Telly Addicts (Europe)	en	YADP
+Tenchu - Dark Secret (USA)	en	ACUE
+Tennis Masters (Europe)	en	AXTP
+Tetris DS (USA, Australia)	en	ATRE
+Texas Hold 'em Poker DS (USA)	en	ATHE
+Texas Hold 'em Poker Pack (Europe)	en	ATXP
+Texas Hold 'em Poker Pack (USA)	en	ATXE
+That's So Raven - Psychic on the Scene (USA)	en	ARVE
+Theresia.. (USA)	en	YJAE
+Think - Train Je Brein - Logica Trainer (Netherlands)	nl	YTLH
+Thomas & Friends - Hero of the Rails (Europe)	en	BT4P
+Tigre, El - The Adventures of Manny Rivera (Europe)	en	YETP
+Tigre, El - The Adventures of Manny Rivera (USA)	en	YETE
+Time Ace (USA)	en	AE3E
+Times, The - Crossword Challenge (Europe)	en	YQOP
+Timmy Time (Europe)	en	B24P
+Tinker Bell (USA)	en	CDFE
+Tinker Bell and the Great Fairy Rescue (Europe)	en	BTUP
+Tinker Bell and the Lost Treasure (Europe)	en	BTBP
+Titanic Mystery (USA)	en	BTIE
+Toetstrainer - Rekenen (Netherlands)	nl	BRKH
+Toetstrainer - Taal (Netherlands)	nl	BTLH
+Tokyo Beat Down (USA)	en	YJUE
+Tom Clancy's Splinter Cell - Conviction (USA) (Proto)	en	YSIE
+Tony Hawk's American Sk8land (USA)	en	AH9E
+Tony Hawk's Downhill Jam (USA)	en	AWKE
+Tony Hawk's Motion (Europe)	en	CTWP
+Tony Hawk's Motion (USA)	en	CTWE
+Tony Hawk's Proving Ground (USA)	en	YT9E
+Toon-Doku - Sudoku with Pictures! (USA)	en	AYQE
+Top Gun (Europe)	en	APGP
+Top Gun (USA)	en	APGE
+Top Spin 3 (USA)	en	YUXE
+Top Trumps - Doctor Who (Europe)	en	YWOP
+Top Trumps - NBA All Stars (USA)	en	B57E
+Touch Darts (USA)	en	A4ZE
+Touch Detective (USA)	en	AOZE
+Touch Detective 2 1-2 (USA)	en	AOJE
+TouchMaster (USA)	en	AO8E
+TouchMaster (USA) (Rev 1)	en	AO8E
+Toy Shop (USA)	en	YYTE
+Trace Memory (USA)	en	ANOE
+Transformers - Autobots (USA)	en	AFZE
+Transformers - Autobots (USA) (Rev 1)	en	AFZE
+Transformers - Autobots (United Kingdom)	en	AFZP
+Transformers - Autobots (United Kingdom) (Rev 1)	en	AFZP
+Transformers - Decepticons (Europe)	en	AFYP
+Transformers - Decepticons (Europe) (Rev 1)	en	AFYP
+Transformers - Decepticons (USA)	en	AFYE
+Transformers - Decepticons (USA) (Rev 1)	en	AFYE
+Transformers Animated - The Game (USA)	en	CTFE
+Transformers Prime - The Game (United Kingdom)	en	TPTP
+Trash Pack, The (Europe)	en	TPAP
+Trash Pack, The (USA)	en	TPAE
+Trauma Center - Under the Knife (USA)	en	AKDE
+Trauma Center - Under the Knife 2 (USA)	en	YYKE
+Travel Games for Dummies (USA)	en	CVME
+Treasure World (USA)	en	C5TE
+Treasures of Montezuma, The (USA)	en	BTQE
+Trioncube (USA)	en	A3OE
+Turn It Around (Europe)	en	AQQP
+Turn It Around (USA)	en	AQQE
+USA Today - Puzzle Craze (USA)	en	CPFE
+Ultimate Game Room (USA)	en	BUGE
+Ultimate Puzzle Games - Sudoku Edition (USA)	en	YUSE
+Ultimate Spider-Man (Europe)	en	AUSP
+Ultimate Spider-Man (USA)	en	AUSE
+Underground Pool (USA)	en	AOPE
+Underwater Attack (USA)	en	COCE
+Uno 52 (USA)	en	AU5E
+Unsolved Crimes (USA)	en	CICE
+Up (Greece)	el	CUYG
+Up (United Kingdom)	en	CUYP
+Urbz, The - Sims in the City (USA)	en	ASIE
+Valentines Day (Europe)	en	CVDP
+Valkyrie Profile - Covenant of the Plume (Europe)	en	YVPP
+Valkyrie Profile - Covenant of the Plume (USA)	en	YVPE
+Vampire Legends - Power of Three (USA) (NDSi Enhanced)	en	VWVE
+Vegas Casino (USA)	en	AVEE
+Veggy World (USA)	en	BV4E
+Veronica Poker (Netherlands)	nl	YJPH
+Viewtiful Joe - Double Trouble! (USA)	en	AVJE
+Viewtiful Joe - Double Trouble! (United Kingdom)	en	AVJP
+WALL-E (Europe)	en	YWLP
+WWE SmackDown vs Raw 2008 Featuring ECW (USA)	en	AW8E
+WWE SmackDown vs Raw 2008 Featuring ECW (United Kingdom)	en	AW8P
+WWE SmackDown vs Raw 2009 Featuring ECW (United Kingdom)	en	YW9P
+Wario - Master of Disguise (USA)	en	AWAE
+WarioWare - D.I.Y. (USA)	en	UORE
+WarioWare - Touched! (USA)	en	AZWE
+Western Riding Academy (USA)	en	CWPE
+Whac-A-Mole (USA)	en	AWME
+Wheel of Fortune (USA)	en	BW7E
+Who Wants to Be a Millionaire (USA)	en	B7ME
+Wickey de Viking (Netherlands)	nl	BWMH
+Wiffle Ball (USA)	en	AWBE
+Wild West, The (USA)	en	AWWE
+Windy x Windam (USA)	en	BW2E
+Winter's Tail - How One Little Dolphin Learned to Swim Again (USA)	en	BWUE
+Winx Club - Quest for the Codex (USA)	en	AWXE
+Wipeout - The Game (USA)	en	BWOE
+Wipeout 2 (USA)	en	BWEE
+Witch's Tale, A (USA)	en	CW3E
+Witch's Wish (USA)	en	CJ7E
+Witches & Vampires - The Secrets of Ashburry (Netherlands)	nl	BWVH
+Witches & Vampires - The Secrets of Ashburry (USA)	en	BWVE
+Wizard of Oz, The - Beyond the Yellow Brick Road (USA)	en	COZE
+Wizards of Waverly Place - Spellbound (USA)	en	BW4E
+Wonder Pets! - Save the Animals! (Europe)	en	CWAP
+Wonder Pets! - Save the Animals! (USA)	en	CWAE
+Wonder World - Amusement Park (Europe)	en	CCWP
+Wonder World - Amusement Park (USA)	en	CCWE
+Word Academy (Europe)	en	CYCP
+WordJong (Europe)	en	YWJP
+WordJong (USA)	en	YWJE
+Wordfish (USA)	en	CYCE
+Wordmaster (Europe)	en	CWOP
+Wordmaster (USA)	en	CWOE
+World Championship Poker - Deluxe Series (Europe)	en	AWPP
+World Championship Poker - Deluxe Series (USA)	en	AWPE
+World Cup of Pool (USA)	en	YQKE
+World Ends with You, The (Europe)	en	AWLP
+World Ends with You, The (USA)	en	AWLE
+World Series of Poker 2008 - The Official Video Game - Battle for the Bracelets (Europe)	en	YWBP
+World Series of Poker 2008 - The Official Video Game - Battle for the Bracelets (USA)	en	YWBE
+World Snooker Championship - Season 2007-08 (Europe)	en	YSNP
+Worms - Open Warfare (USA)	en	AWSE
+X-Men - Destiny (USA)	en	BXYE
+X-Men - The Official Game (USA)	en	A3XE
+Xia-Xia (USA)	en	TAXE
+Xiaolin Showdown (USA)	en	AXLE
+Yamaha Supercross (USA)	en	YQXE
+Yoshi Touch & Go (USA, Australia)	en	AYIE
+Yoshi's Island DS (USA)	en	AYWE
+Yoshi's Island DS (USA) (Rev 1)	en	AYWE
+You Don't Know Jack (USA) (NDSi Enhanced)	en	VJCE
+Ys Strategy (Europe)	en	AYSP
+Yu-Gi-Oh! - Nightmare Troubadour (USA)	en	AYGE
+Yummy Yummy Cooking Jam (Europe) (Proto)	en,fr,de,es,it,nl,pt,sv,da,no	CPVP
+Zhu Zhu Pets (Europe)	en,fr,de,es,it	BZZP
+Zhu Zhu Pets (USA)	en	BZZE
+ZhuZhu Puppies (USA)	en	BZ8E
+Zoey 101 - Field Trip Fiasco (USA)	en	YZYE
+Zoo Hospital (USA)	en	YZHE
+Zoo Hospital (United Kingdom)	en	YZHP
+Zoo Keeper (USA)	en	AZKE
+Zoo Quest - Puzzle Fun! (USA)	en	CCZE
+Zoo Tycoon 2 DS (USA)	en	YZTE
+Zoo Tycoon DS (USA)	en	AZTE
+Zoo Tycoon DS (United Kingdom)	en	AZTP
+Zoo Vet - Endangered Animals (USA)	en	CZVE
+Zuma's Revenge (USA)	en	TRZE
+futureU - The Prep Game for SAT (USA)	en	CUTE
+iCarly (Australia) (NDSi Enhanced)	en	VICU
+iCarly - Groovy Foodie! (Europe)	en	TCLP
+iCarly - Groovy Foodie! (USA)	en	TCLE
+iCarly 2 - iJoin the Click! (USA) (NDSi Enhanced)	en	VIJE
+th!nk - Logic Trainer (USA)	en	YTLE
+th!nk - Logic Trainer - KIDS! (USA)	en	CI9E
+thinkSMART - Power UP your brain! (USA) (Rev 1)	en	YTLE
+thinkSMART - Power UP your brain! - Kids 8+ (USA) (Rev 1)	en	CI9E
+thinkSMART Games - Scotland Yard - Hunting Mister X (USA)	en	CSQE

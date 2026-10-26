@@ -14,6 +14,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,10 +46,37 @@ public final class DownloadStore {
     /** Returns the Android download ID. Cookies and temporary URLs are never saved by this store. */
     public long enqueue(String url, String fileName, String userAgent, String cookie,
                         String sourcePage, boolean wifiOnly) {
-        if (url == null || !DownloadPolicy.isAllowedDownload(url)) {
+        return enqueue(url, fileName, userAgent, cookie, sourcePage, wifiOnly, false, "");
+    }
+
+    public long enqueue(String url, String fileName, String userAgent, String cookie,
+                        String sourcePage, boolean wifiOnly, String artworkUrl) {
+        return enqueue(url, fileName, userAgent, cookie, sourcePage, wifiOnly, false, artworkUrl);
+    }
+
+    /** Queues DS files without hShop cookies or a browser Referer. */
+    public long enqueueNds(String url, String fileName, String userAgent,
+                           String sourcePage, boolean wifiOnly) {
+        return enqueueNds(url, fileName, userAgent, sourcePage, wifiOnly, "");
+    }
+
+    /** Keeps optional public artwork separately from the game transfer and its request headers. */
+    public long enqueueNds(String url, String fileName, String userAgent,
+                           String sourcePage, boolean wifiOnly, String artworkUrl) {
+        return enqueue(url, fileName, userAgent, null, sourcePage, wifiOnly, true, artworkUrl);
+    }
+
+    private long enqueue(String url, String fileName, String userAgent, String cookie,
+                         String sourcePage, boolean wifiOnly, boolean nds, String artworkUrl) {
+        if (!(nds ? DownloadPolicy.isAllowedNdsDownload(url) : DownloadPolicy.isAllowedDownload(url))) {
             throw new IllegalArgumentException("This download address is not an approved HTTPS source.");
         }
-        String page = catalogPage(sourcePage);
+        if (nds && (!DownloadPolicy.isNdsContentFile(fileName == null ? null : fileName.trim())
+                || !DownloadPolicy.isNdsContentFile(GameFilename.clean(fileName)))) {
+            throw new IllegalArgumentException("DS downloads must be NDS files or ZIP bundles.");
+        }
+        String page = nds ? (NdsCatalog.isDetailUrl(sourcePage) ? sourcePage : NdsCatalog.HOME)
+                : hshopPage(sourcePage);
         synchronized (LOCK) {
             // Reserve the name while holding the same lock as enqueue and persistence. Pending
             // downloads may not have created a file yet, so filesystem checks alone are not enough.
@@ -58,7 +86,7 @@ public final class DownloadStore {
             try {
                 request = new DownloadManager.Request(Uri.parse(url))
                         .setTitle(name)
-                        .setDescription("ThorShelf · hShop")
+                        .setDescription(nds ? "ThorShelf · Nintendo DS" : "ThorShelf · hShop")
                         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                         .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "ThorShelf/" + name)
                         .setAllowedOverRoaming(false);
@@ -66,12 +94,12 @@ public final class DownloadStore {
                     request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI);
                 }
                 addHeader(request, "User-Agent", userAgent);
-                addHeader(request, "Cookie", cookie);
-                if (sourcePage != null && !sourcePage.trim().isEmpty()) {
+                if (!nds) addHeader(request, "Cookie", cookie);
+                if (!nds && sourcePage != null && !sourcePage.trim().isEmpty()) {
                     addHeader(request, "Referer", page);
                 }
             } catch (RuntimeException ignored) {
-                throw new IllegalArgumentException("Could not prepare this download. Reopen its hShop page and try again.");
+                throw new IllegalArgumentException("Could not prepare this download. Reopen its catalog page and try again.");
             }
             final long id;
             try {
@@ -79,7 +107,7 @@ public final class DownloadStore {
             } catch (RuntimeException ignored) {
                 throw new IllegalStateException("Android could not start the download. Check available storage and the download service.");
             }
-            records.add(new TrackedDownload(id, name, page));
+            records.add(new TrackedDownload(id, name, page, null, artworkUrl));
             if (!writeRecords(records)) {
                 try {
                     manager.remove(id);
@@ -141,7 +169,7 @@ public final class DownloadStore {
                 if (entry == null) {
                     entry = queried
                             ? new Entry(record, 0, -1, DownloadManager.STATUS_FAILED, DownloadManager.ERROR_UNKNOWN,
-                            "Removed from Android downloads. Reopen its hShop page for a fresh link.")
+                            "Removed from Android downloads. Reopen its catalog page for a fresh link.")
                             : new Entry(record, 0, -1, 0, 0,
                             "Android download status is unavailable. Check again shortly.");
                 }
@@ -173,6 +201,120 @@ public final class DownloadStore {
             if (!writeRecords(records)) {
                 throw new IllegalStateException("The download was removed, but the saved list could not be updated.");
             }
+        }
+    }
+
+    /** Fills missing public artwork without changing a transfer or replacing newer metadata. */
+    public boolean updateArtwork(long id, String artworkUrl) {
+        if (!ArtworkPolicy.isAllowed(artworkUrl)) return false;
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
+            for (int i = 0; i < records.size(); i++) {
+                TrackedDownload record = records.get(i);
+                if (record.id != id) continue;
+                if (!record.artworkUrl.isEmpty()) return record.artworkUrl.equals(artworkUrl);
+                records.set(i, new TrackedDownload(record.id, record.name, record.sourcePage,
+                        record.preparedDestination, artworkUrl));
+                if (writeRecords(records)) return true;
+                records.set(i, record);
+                writeRecords(records);
+                return false;
+            }
+            return false;
+        }
+    }
+
+    /** Records a separate copy only after preparation has fully saved and closed it. */
+    public boolean markPrepared(long id, Uri destination) {
+        Uri prepared = preparedUri(destination == null ? null : destination.toString());
+        if (prepared == null) return false;
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
+            for (int i = 0; i < records.size(); i++) {
+                TrackedDownload record = records.get(i);
+                if (record.id != id) continue;
+                Uri original = successfulDownloadUri(id);
+                if (original == null || original.equals(prepared)) return false;
+                records.set(i, new TrackedDownload(record.id, record.name, record.sourcePage,
+                        prepared, record.artworkUrl));
+                if (writeRecords(records)) return true;
+                // commit(false) may still change SharedPreferences' in-memory snapshot. Restore
+                // the previous marker so a failed save cannot unlock deletion in this process.
+                records.set(i, record);
+                writeRecords(records);
+                return false;
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Removes only the original Android download after checking its separately prepared copy.
+     * The caller must serialize this with preparation so the original cannot be in use.
+     */
+    public void deletePreparedOriginal(long id) {
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
+            TrackedDownload originalRecord = null;
+            for (TrackedDownload record : records) {
+                if (record.id == id) {
+                    originalRecord = record;
+                    break;
+                }
+            }
+            if (originalRecord == null || originalRecord.preparedDestination == null) {
+                throw new IllegalStateException("Prepare this download for Azahar before deleting its original.");
+            }
+            Uri original = successfulDownloadUri(id);
+            if (original == null) {
+                throw new IllegalStateException("Only a completed download can have its original deleted.");
+            }
+            Uri prepared = originalRecord.preparedDestination;
+            if (original.equals(prepared) || !hasReadableContent(prepared)) {
+                throw new IllegalStateException("The prepared copy is missing, empty, or unavailable. Prepare it again before deleting the original.");
+            }
+            try {
+                // DownloadManager owns the original. Never delete the prepared document or its folder.
+                manager.remove(id);
+            } catch (RuntimeException ignored) {
+                throw new IllegalStateException("Android could not delete this original. Try again shortly.");
+            }
+            records.remove(originalRecord);
+            if (!writeRecords(records)) {
+                throw new IllegalStateException("The original was deleted, but the saved list could not be updated.");
+            }
+        }
+    }
+
+    private Uri successfulDownloadUri(long id) {
+        try (Cursor cursor = manager.query(new DownloadManager.Query().setFilterById(id))) {
+            if (cursor == null || !cursor.moveToFirst()
+                    || cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                    != DownloadManager.STATUS_SUCCESSFUL) return null;
+            return preparedUri(String.valueOf(manager.getUriForDownloadedFile(id)));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private boolean hasReadableContent(Uri uri) {
+        try (InputStream input = context.getContentResolver().openInputStream(uri)) {
+            // Providers can report an unknown length. Reading one byte verifies both access and
+            // nonempty content without loading a potentially large game into memory.
+            return input != null && input.read() != -1;
+        } catch (IOException | RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private static Uri preparedUri(String value) {
+        if (value == null || value.isEmpty()) return null;
+        try {
+            Uri uri = Uri.parse(value);
+            return "content".equals(uri.getScheme()) && uri.getAuthority() != null
+                    && !uri.getAuthority().isEmpty() ? uri : null;
+        } catch (RuntimeException ignored) {
+            return null;
         }
     }
 
@@ -227,7 +369,9 @@ public final class DownloadStore {
                 }
                 records.add(new TrackedDownload(record.optLong("id"),
                         DownloadPolicy.safeFilename(record.optString("name", "download")),
-                        catalogPage(record.optString("sourcePage", CATALOG_HOME))));
+                        catalogPage(record.optString("sourcePage", CATALOG_HOME)),
+                        preparedUri(record.optString("preparedDestination", null)),
+                        record.optString("artworkUrl", "")));
             }
         } catch (JSONException | ClassCastException ignored) {
             // A corrupt local list should not prevent browsing or querying future downloads.
@@ -243,6 +387,12 @@ public final class DownloadStore {
                 object.put("id", record.id);
                 object.put("name", record.name);
                 object.put("sourcePage", record.sourcePage);
+                if (!record.artworkUrl.isEmpty()) {
+                    object.put("artworkUrl", record.artworkUrl);
+                }
+                if (record.preparedDestination != null) {
+                    object.put("preparedDestination", record.preparedDestination.toString());
+                }
                 array.put(object);
             }
             return preferences.edit().putString(RECORDS_KEY, array.toString()).commit();
@@ -312,6 +462,11 @@ public final class DownloadStore {
     }
 
     private static String catalogPage(String value) {
+        if (NdsCatalog.isDetailUrl(value) || NdsCatalog.HOME.equals(value)) return value;
+        return hshopPage(value);
+    }
+
+    private static String hshopPage(String value) {
         if (value == null || value.trim().isEmpty()) {
             return CATALOG_HOME;
         }
@@ -351,19 +506,19 @@ public final class DownloadStore {
             case DownloadManager.STATUS_FAILED:
                 switch (reason) {
                     case DownloadManager.ERROR_INSUFFICIENT_SPACE:
-                        return "Not enough storage. Free some space, then reopen its hShop page for a fresh link.";
+                        return "Not enough storage. Free some space, then reopen its catalog page for a fresh link.";
                     case DownloadManager.ERROR_DEVICE_NOT_FOUND:
-                        return "Download storage is unavailable. Reopen its hShop page when storage is available.";
+                        return "Download storage is unavailable. Reopen its catalog page when storage is available.";
                     case DownloadManager.ERROR_FILE_ALREADY_EXISTS:
-                        return "A file already exists at this destination. Reopen its hShop page for a fresh link.";
+                        return "A file already exists at this destination. Reopen its catalog page for a fresh link.";
                     case DownloadManager.ERROR_FILE_ERROR:
-                        return "Could not save the file. Check storage, then reopen its hShop page for a fresh link.";
+                        return "Could not save the file. Check storage, then reopen its catalog page for a fresh link.";
                     case DownloadManager.ERROR_CANNOT_RESUME:
-                        return "This transfer could not resume. Reopen its hShop page for a fresh link.";
+                        return "This transfer could not resume. Reopen its catalog page for a fresh link.";
                     case DownloadManager.ERROR_HTTP_DATA_ERROR:
-                        return "The connection failed. Reopen its hShop page for a fresh link.";
+                        return "The connection failed. Reopen its catalog page for a fresh link.";
                     default:
-                        return "Download failed or its link expired. Reopen its hShop page for a fresh link.";
+                        return "Download failed or its link expired. Reopen its catalog page for a fresh link.";
                 }
             default:
                 return "Android download status is unavailable";
@@ -374,11 +529,16 @@ public final class DownloadStore {
         final long id;
         final String name;
         final String sourcePage;
+        final Uri preparedDestination;
+        final String artworkUrl;
 
-        TrackedDownload(long id, String name, String sourcePage) {
+        TrackedDownload(long id, String name, String sourcePage, Uri preparedDestination,
+                        String artworkUrl) {
             this.id = id;
             this.name = name;
             this.sourcePage = sourcePage;
+            this.preparedDestination = preparedDestination;
+            this.artworkUrl = ArtworkPolicy.isAllowed(artworkUrl) ? artworkUrl : "";
         }
     }
 
@@ -390,9 +550,11 @@ public final class DownloadStore {
         /** Readable label for older downloads; name still identifies the original saved file. */
         public final String displayName;
         public final String sourcePage;
+        public final String artworkUrl;
         public final String statusLabel;
         public final int status;
         public final int reason;
+        private final boolean prepared;
 
         private Entry(TrackedDownload record, long downloaded, long total, int status, int reason,
                       String statusLabel) {
@@ -400,15 +562,21 @@ public final class DownloadStore {
             this.name = record.name;
             this.displayName = GameFilename.clean(record.name);
             this.sourcePage = record.sourcePage;
+            this.artworkUrl = record.artworkUrl;
             this.downloaded = downloaded;
             this.total = total;
             this.status = status;
             this.reason = reason;
             this.statusLabel = statusLabel;
+            this.prepared = record.preparedDestination != null;
         }
 
         public boolean isComplete() {
             return status == DownloadManager.STATUS_SUCCESSFUL;
+        }
+
+        public boolean isPrepared() {
+            return prepared;
         }
 
         public boolean isActive() {

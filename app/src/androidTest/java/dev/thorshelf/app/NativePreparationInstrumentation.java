@@ -30,7 +30,7 @@ public final class NativePreparationInstrumentation extends Instrumentation {
             try {
                 long id = SyntheticDemoSeeder.seed(getTargetContext());
                 results.putLong("demo_download_id", id);
-                results.putString("stream", "Created locally generated Synthetic preparation demo (not a game).cia; download ID " + id + ". No network request was made.\n");
+                results.putString("stream", "Created locally generated Synthetic cartridge demo (not a game).cia; download ID " + id + ". No network request was made.\n");
                 finish(Activity.RESULT_OK, results);
             } catch (Throwable failure) {
                 results.putString("stream", "Demo setup failed: " + failure + "\n" + android.util.Log.getStackTraceString(failure));

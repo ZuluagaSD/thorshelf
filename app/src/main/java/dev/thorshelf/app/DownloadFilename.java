@@ -17,7 +17,21 @@ public final class DownloadFilename {
 
     /** Returns a safe supported filename, or null when the response cannot be identified. */
     public static String resolve(String url, String contentDisposition, String mimeType) {
-        if (!DownloadPolicy.isAllowedDownload(url) || isDocumentResponse(mimeType)) return null;
+        if (!DownloadPolicy.isAllowedDownload(url)) return null;
+        return resolveFilename(url, contentDisposition, mimeType, false);
+    }
+
+    /** DS downloads accept direct ROMs and ZIP bundles from their own public sources. */
+    public static String resolveNds(String url, String contentDisposition, String mimeType) {
+        if (!DownloadPolicy.isAllowedNdsDownload(url)) return null;
+        String name = resolveFilename(url, contentDisposition, mimeType, true);
+        String archiveName = DownloadPolicy.ndsArchiveFilename(url);
+        return archiveName == null || GameFilename.clean(archiveName).equals(name) ? name : null;
+    }
+
+    private static String resolveFilename(String url, String contentDisposition, String mimeType,
+                                          boolean nds) {
+        if (isDocumentResponse(mimeType)) return null;
         if (contentDisposition != null && contentDisposition.length() > MAX_HEADER_LENGTH) return null;
 
         HeaderNames names = parseHeader(contentDisposition);
@@ -30,9 +44,13 @@ public final class DownloadFilename {
             }
         }
         // Check before sanitizing: safeFilename's generic default must not invent a CIA type.
-        if (name == null || !DownloadPolicy.isContentFile(name.trim())) return null;
+        if (name == null || !isContentFile(name.trim(), nds)) return null;
         String safe = GameFilename.clean(name);
-        return DownloadPolicy.isContentFile(safe) ? safe : null;
+        return isContentFile(safe, nds) ? safe : null;
+    }
+
+    private static boolean isContentFile(String name, boolean nds) {
+        return nds ? DownloadPolicy.isNdsContentFile(name) : DownloadPolicy.isContentFile(name);
     }
 
     private static boolean isDocumentResponse(String mimeType) {

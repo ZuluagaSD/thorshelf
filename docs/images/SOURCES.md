@@ -1,0 +1,5 @@
+# README images
+
+- **`ayn-thor.jpg`** is an unmodified official AYN product image, retrieved on 2026-10-27 from the [AYN Thor product page](https://www.ayntec.com/products/ayn-thor). [Original image](https://www.ayntec.com/cdn/shop/files/4fe40f089696834c4906303a743d01c5_d891fc5b-3473-449a-85c1-56663e291fcf_1024x1024.jpg?v=1755855604). Credit: AYN. The device's screens in this product image do not show ThorShelf.
+- **App screenshots** are actual ThorShelf captures, not interface mockups. The browse captures in [design/screenshots/readme](../../design/screenshots/readme/) were taken on 2026-10-27 in the Android emulator using the development build with the 0.6.0 interface. The 3DS home shelf contains bundled illustrations, not gameplay images. The [companion capture](../../design/screenshots/artwork-companion/thor-companion-browse.png) shows the physical Thor's lower display, captured on 2026-10-26.
+- Cover artwork visible inside ThorShelf comes from [GameTDB](https://www.gametdb.com/) (3DS) and [libretro thumbnails](https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_DS) (DS). Game artwork and trademarks belong to their respective owners.

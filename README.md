@@ -1,6 +1,6 @@
-<a href="https://www.ayntec.com/products/ayn-thor"><img align="right" src="docs/images/ayn-thor.jpg" alt="Black AYN Thor handheld with its two screens open" width="230"></a>
-
 # ThorShelf
+
+<a href="https://www.ayntec.com/products/ayn-thor"><img align="right" src="docs/images/ayn-thor.jpg" alt="Black AYN Thor handheld with its two screens open" width="28%"></a>
 
 **Your DS & 3DS shelf, on Android.**
 

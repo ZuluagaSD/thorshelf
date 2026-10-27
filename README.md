@@ -12,7 +12,9 @@ Downloads use the full width for the transfer list and actions for completed fil
 
 ## Install
 
-Install `app/build/outputs/apk/debug/app-debug.apk` on an Android 10 or newer ARM64 device (including the Thor) or an x86_64 emulator. Android may ask you to allow installation from the app opening the APK. This is a development build, signed with a local debug key.
+Download the signed APK from [GitHub Releases](https://github.com/ZuluagaSD/thorshelf/releases/latest) and install it on an Android 10 or newer ARM64 device (including the Thor) or an x86_64 emulator. Android may ask you to allow installation from the app opening the APK. Each release includes `SHA256SUMS` for verifying the download.
+
+Version 0.6.0 is the first published release and uses a dedicated release signing key. If you previously installed a local debug build, Android requires uninstalling that build before installing the release APK. Uninstalling clears ThorShelf's settings and download history; files already saved in your chosen shared games folders remain. Select your DS and 3DS folders again after installing; existing saved games can still be opened from your emulator's library. Future releases signed with the same release key can update this build in place.
 
 1. Open **Browse**, search for a title, and choose its matching region and content category.
 2. Tap **Download** on its card. Complete hShop's verification if prompted; the file then joins your queue automatically. A **Queued ✓** button opens Downloads.
@@ -110,11 +112,15 @@ The script runs unit tests, Android lint, and the debug APK build. It also recog
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
+Development APKs are written to `app/build/outputs/apk/debug/app-debug.apk` and use a local debug key. To build the unsigned release variant, run `./scripts/build.sh lintRelease assembleRelease`; the output is `app/build/outputs/apk/release/app-release-unsigned.apk`. Published APKs are signed separately with Android Build Tools `apksigner`; the release keystore and its credentials are kept outside the repository.
+
 The Gradle wrapper uses Gradle 8.9 with a pinned distribution checksum and Android Gradle Plugin 8.7.3. The app uses Java and Android framework widgets, jsoup for public catalog HTML parsing, and a source-built native library for CIA preparation. jsoup and Android compatibility-library notices are included in the app. JUnit and Robolectric are test-only dependencies. Native source and dependencies are vendored under `native/`; no prebuilt native binaries are downloaded at runtime.
 
 Java source is under `app/src/main/java/dev/thorshelf/app`. URL/filename policy, download persistence, native catalog UI and verification, companion display, file export, preparation service, native bridge, and CIA validation are separate classes.
 
 ## Verification and remaining device checks
+
+Version 0.6.0 passed the full **698-test unit/framework suite**, release lint with **zero errors** (43 advisory warnings), and the ARM64/x86_64 release build. The published APK's signature and ZIP alignment were verified. This is an early release; the dedicated physical-device checks listed below remain relevant.
 
 Automated checks cover hostile URLs, filename boundaries, search encoding, and the Android behaviors exercised by the tests in `app/src/test`. Lint checks the supported Android API levels. Robolectric is a simulated framework environment; it does not execute a real browser or replace hardware testing.
 

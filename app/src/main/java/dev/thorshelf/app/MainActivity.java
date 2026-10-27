@@ -563,7 +563,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                 ? "https://github.com/0x1a4-dev/DSiDrop" : CatalogFilters.sourceUrl(sourcePage))));
         help.addView(Ui.button(this, "Open-source licenses", this::showLicenses));
         help.addView(Ui.button(this, "3DS cover art: GameTDB", () -> openExternal("https://www.gametdb.com/")));
-        body.addView(Ui.text(this, "ThorShelf 0.5.0 · Unofficial companion\nCatalogs: hShop and DSiDrop. DS cover art: libretro. DS language metadata: GameTDB. Not affiliated with these services, Nintendo, AYN, or Azahar. Shelf illustrations are bundled editorial artwork.", 12, Ui.MUTED));
+        body.addView(Ui.text(this, "ThorShelf 0.6.0 · Unofficial companion\nCatalogs: hShop and DSiDrop. DS cover art: libretro. DS language metadata: GameTDB. Not affiliated with these services, Nintendo, AYN, or Azahar. Shelf illustrations are bundled editorial artwork.", 12, Ui.MUTED));
     }
 
     private LinearLayout settingsCard(LinearLayout parent, String title) {

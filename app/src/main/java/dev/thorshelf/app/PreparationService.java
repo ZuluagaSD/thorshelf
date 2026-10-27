@@ -28,14 +28,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Prepares a private copy, validates it, then saves a new SAF document for Azahar. */
+/** Automatically validates a completed game, saves it to the selected folder, and removes its source. */
 public final class PreparationService extends Service {
     private static final Object STATE_LOCK = new Object();
     private static final String CHANNEL = "preparation";
@@ -77,9 +81,17 @@ public final class PreparationService extends Service {
 
     /** Folder must be returned by ACTION_OPEN_DOCUMENT_TREE; output is created after validation. */
     public static void start(Context context, long downloadId, Uri folder, String name) {
+        start(context, downloadId, folder, name, false);
+    }
+
+    static void startCleanup(Context context, long downloadId, String name) {
+        start(context, downloadId, null, name, true);
+    }
+
+    private static void start(Context context, long downloadId, Uri folder, String name, boolean cleanupOnly) {
         Context app = application(context);
-        if (downloadId <= 0 || folder == null || !"content".equals(folder.getScheme())
-                || !DocumentsContract.isTreeUri(folder)) {
+        if (downloadId <= 0 || (!cleanupOnly && (folder == null || !"content".equals(folder.getScheme())
+                || !DocumentsContract.isTreeUri(folder)))) {
             throw new IllegalArgumentException("Choose a games folder for the prepared file.");
         }
         status(app);
@@ -99,24 +111,30 @@ public final class PreparationService extends Service {
                     .putLong("download_id", downloadId)
                     .putBoolean("in_progress", true).putBoolean("ready", false).putInt("progress", 0)
                     .putBoolean("destination_owned", false)
-                    .remove("destination").putString("folder", folder.toString()).putString("token", token).commit()) {
+                    .remove("destination").putString("folder", folder == null ? "" : folder.toString()).putString("token", token).commit()) {
                 active = false;
                 activeToken = null;
                 throw new IllegalStateException("Could not save the preparation request. Check free device storage.");
             }
         }
         Intent intent = new Intent(app, PreparationService.class)
-                .putExtra("download_id", downloadId).putExtra("folder", folder.toString())
-                .putExtra("name", safeName).putExtra("token", token);
+                .putExtra("download_id", downloadId).putExtra("folder", folder == null ? "" : folder.toString())
+                .putExtra("cleanup_only", cleanupOnly).putExtra("name", safeName).putExtra("token", token);
         try {
+            if (!new DownloadStore(app).setCompletionStatus(downloadId, true, "Saving to games folder…")) {
+                throw new IllegalStateException("Could not save the completion request.");
+            }
             app.startForegroundService(intent);
         } catch (RuntimeException ignored) {
             synchronized (STATE_LOCK) {
                 active = false;
                 activeToken = null;
+                preferences(app).edit().putBoolean("in_progress", false).putBoolean("ready", false)
+                        .remove("token").remove("folder")
+                        .putString("status", "Waiting to save. Open ThorShelf to continue.").commit();
             }
-            status(app);
-            throw new IllegalStateException("Preparation could not start. Keep ThorShelf visible and try again.");
+            new DownloadStore(app).setCompletionStatus(downloadId, false, "Waiting to save. Open ThorShelf to continue.");
+            throw new IllegalStateException("Saving could not start. Keep ThorShelf visible and try again.");
         }
     }
 
@@ -142,8 +160,11 @@ public final class PreparationService extends Service {
                                 .putString("status", "Preparation was interrupted. The original download is safe; try again."
                                         + (!deleted ? " Remove the partial destination file manually." : "")
                                         + (!cleaned ? " Some temporary files could not be removed." : "")).commit();
+                        new DownloadStore(app).setCompletionStatus(prefs.getLong("download_id", -1), true,
+                                "Saving was interrupted. The original download is safe; retry saving.");
                         recoveryRunning = false;
                     }
+                    DownloadCompletion.processPending(app);
                 }, "thorshelf-preparation-recovery").start();
             }
             return prefs.getString("status", "");
@@ -205,7 +226,7 @@ public final class PreparationService extends Service {
         Context app = application(context);
         String token;
         synchronized (STATE_LOCK) {
-            if (!active) return;
+            if (!active || !preferences(app).getBoolean("in_progress", false)) return;
             token = activeToken;
             cancelledToken = token;
             preferences(app).edit().putString("status", "Stopping preparation at the next safe point…").apply();
@@ -221,8 +242,8 @@ public final class PreparationService extends Service {
         super.onCreate();
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL, "CIA preparation", NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("Progress preparing a local CIA copy for Azahar");
+            NotificationChannel channel = new NotificationChannel(CHANNEL, "Saving games", NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription("Progress saving completed games to the selected folder");
             manager.createNotificationChannel(channel);
         }
     }
@@ -240,7 +261,8 @@ public final class PreparationService extends Service {
         Uri folder = intent == null ? null : parseDestination(intent.getStringExtra("folder"));
         String token = intent == null ? null : intent.getStringExtra("token");
         long downloadId = intent == null ? -1 : intent.getLongExtra("download_id", -1);
-        if (folder == null || !DocumentsContract.isTreeUri(folder) || token == null || downloadId <= 0) {
+        boolean cleanupOnly = intent != null && intent.getBooleanExtra("cleanup_only", false);
+        if ((!cleanupOnly && (folder == null || !DocumentsContract.isTreeUri(folder))) || token == null || downloadId <= 0) {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
@@ -258,7 +280,7 @@ public final class PreparationService extends Service {
         }
         PreparationJob job = new PreparationJob(startId, downloadId, folder,
                 GameFilename.clean(intent.getStringExtra("name")), token, pipeline,
-                new File(workspaceRoot(this), token));
+                new File(workspaceRoot(this), token), cleanupOnly);
         current = job;
         try {
             startForeground(NOTIFICATION_ID, notification(job, "Preparing " + job.name, 0),
@@ -273,6 +295,10 @@ public final class PreparationService extends Service {
 
     private void prepare(PreparationJob job) {
         job.started.set(true);
+        if (job.cleanupOnly) {
+            cleanupOriginal(job);
+            return;
+        }
         boolean success = false;
         String message = "Preparation failed. Check free storage and try again.";
         try {
@@ -342,6 +368,9 @@ public final class PreparationService extends Service {
             copy(job, prepared.file.length(), 90, 100, "Saving " + (prepared.requiresInstall ? "prepared CIA" : "game to folder"));
             closeStreams(job);
             checkCancelled(job);
+            message = "The saved game could not be verified. The original download is safe; retry saving.";
+            verifySavedCopy(job, prepared.file);
+            checkCancelled(job);
             success = true;
             message = "Saved " + documentName(resolver, job.destination, outputName) + ". " + (prepared.requiresInstall
                     ? "Use Install CIA in Azahar to add this prepared package."
@@ -401,56 +430,157 @@ public final class PreparationService extends Service {
         }
     }
 
+    private void verifySavedCopy(PreparationJob job, File expected) throws IOException {
+        publish(job, 99, "Checking saved game");
+        final MessageDigest digest;
+        try { digest = MessageDigest.getInstance("SHA-256"); }
+        catch (NoSuchAlgorithmException error) { throw new IOException(error); }
+        try (InputStream local = new FileInputStream(expected);
+             InputStream saved = getContentResolver().openInputStream(job.destination)) {
+            if (saved == null) throw new IOException("Cannot read the saved game");
+            byte[] expectedBytes = new byte[128 * 1024];
+            byte[] savedBytes = new byte[expectedBytes.length];
+            long total = 0;
+            int count;
+            while ((count = local.read(expectedBytes)) != -1) {
+                checkCancelled(job);
+                int offset = 0;
+                while (offset < count) {
+                    int read = saved.read(savedBytes, offset, count - offset);
+                    if (read < 0) throw new IOException("Saved game was truncated");
+                    offset += read;
+                    checkCancelled(job);
+                }
+                for (int i = 0; i < count; i++) {
+                    if (expectedBytes[i] != savedBytes[i]) throw new IOException("Saved game differs from validated output");
+                }
+                digest.update(expectedBytes, 0, count);
+                total += count;
+            }
+            if (saved.read() != -1) throw new IOException("Saved game has unexpected bytes");
+            job.savedSize = total;
+            job.savedDigest = DownloadStore.hex(digest.digest());
+        }
+    }
+
     private void finish(PreparationJob job, boolean success, String message) {
         if (!job.finished.compareAndSet(false, true)) return;
+        success = success && !cancelled(job);
+        if (cancelled(job)) message = job.cancelMessage;
+        boolean destinationDeleted = success || !job.mayDeleteDestination || deleteDocument(this, job.destination);
         boolean workspaceCleaned = deleteTree(job.directory);
-        boolean destinationHandled = !job.mayDeleteDestination;
-        boolean destinationDeleted = true;
-        while (true) {
-            synchronized (STATE_LOCK) {
-                // A cancellation during cleanup must be observed before recording success.
-                boolean wasCancelled = cancelled(job);
-                success = success && !wasCancelled;
-                if (success || destinationHandled) {
-                    if (wasCancelled) message = job.cancelMessage;
-                    if (!destinationDeleted) message += " Remove the partial destination file manually. The original download is safe.";
-                    if (!workspaceCleaned) message += " Some temporary files could not be removed.";
-                    if (job.token.equals(activeToken)) {
-                        boolean finalized = preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
-                                .putBoolean("ready", success).putInt("progress", success ? 100 : 0)
-                                .putBoolean("requires_install", job.requiresInstall)
-                                .remove("destination").remove("destination_owned").remove("folder").remove("token").commit();
-                        // Finalize recovery state before exposing Delete original. Otherwise a process
-                        // interruption could recover and remove a copy already recorded as prepared.
-                        if (success) {
-                            boolean recorded = false;
-                            if (finalized) {
-                                try { recorded = new DownloadStore(this).markPrepared(job.downloadId, job.destination); }
-                                catch (RuntimeException ignored) { }
-                            }
-                            if (!recorded) {
-                                preferences(this).edit().putString("status", message
-                                        + " Could not save the preparation record; keep the original download.").commit();
-                            }
-                        }
-                        active = false;
-                        activeToken = null;
-                        cancelledToken = null;
-                    }
-                    break;
+        // Observe cancellation while potentially slow provider/workspace cleanup was running.
+        if (success && cancelled(job)) {
+            success = false;
+            message = job.cancelMessage;
+            destinationDeleted = !job.mayDeleteDestination || deleteDocument(this, job.destination);
+        }
+        if (!destinationDeleted) message += " Remove the partial destination file manually. The original download is safe.";
+        if (!workspaceCleaned) message += " Some temporary files could not be removed.";
+        DownloadStore store = new DownloadStore(this);
+        boolean recorded = false;
+        synchronized (STATE_LOCK) {
+            if (job.token.equals(activeToken)) {
+                if (success && cancelled(job)) {
+                    success = false;
+                    message = job.cancelMessage;
+                }
+                // Commit recovery ownership before recording a saved game. Recovery must never
+                // delete a saved document after its original has been removed.
+                boolean finalized = preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
+                        .putBoolean("ready", success).putInt("progress", success ? 100 : 0)
+                        .putBoolean("requires_install", job.requiresInstall)
+                        .remove("destination").remove("destination_owned").remove("folder").remove("token").commit();
+                if (success && finalized) {
+                    try { recorded = store.markPrepared(job.downloadId, job.destination, job.requiresInstall,
+                            job.savedSize, job.savedDigest); }
+                    catch (RuntimeException ignored) { }
                 }
             }
-            // Providers can be slow. Keep preparation active, but never hold the UI's status
-            // lock while asking the provider to clean up an unsuccessful destination.
-            destinationDeleted = deleteDocument(this, job.destination);
-            destinationHandled = true;
         }
-        main.post(() -> {
-            if (current == job) {
-                current = null;
-                stopForeground(STOP_FOREGROUND_REMOVE);
-                stopSelf(job.startId);
+        if (!success && job.mayDeleteDestination && destinationDeleted) {
+            // Cancellation may have arrived at the final commit after the earlier cleanup check.
+            if (!deleteDocument(this, job.destination)) message += " Remove the partial destination file manually.";
+        }
+        if (success && recorded) {
+            try {
+                // Keep the service reserved while a provider verifies the saved copy and Android
+                // deletes its source; status reads never wait on that provider under STATE_LOCK.
+                store.deletePreparedOriginal(job.downloadId);
+                message += " Original download removed.";
+            } catch (RuntimeException error) {
+                message += " " + error.getMessage();
             }
+        } else if (success) {
+            message += " Could not save the game record; the original download was kept. Retry saving.";
+        }
+        store.setCompletionStatus(job.downloadId, true, message);
+        synchronized (STATE_LOCK) {
+            if (job.token.equals(activeToken)) {
+                preferences(this).edit().putString("status", message).putBoolean("ready", success && recorded).commit();
+                active = false;
+                activeToken = null;
+                cancelledToken = null;
+            }
+        }
+        continueQueue(job);
+    }
+
+    private void cleanupOriginal(PreparationJob job) {
+        boolean success = false;
+        String message = "Could not finish removing the original download. Retry saving.";
+        DownloadStore store = new DownloadStore(this);
+        try {
+            checkCancelled(job);
+            publish(job, 99, "Checking saved game before removing original");
+            store.deletePreparedOriginal(job.downloadId, () -> {
+                synchronized (STATE_LOCK) {
+                    if (cancelled(job)) return false;
+                    // This is the cancellation boundary: the saved copy is verified, and only
+                    // its recorded original can be deleted after this durable commit.
+                    return preferences(this).edit().putBoolean("in_progress", false).commit();
+                }
+            });
+            success = true;
+            for (DownloadStore.Entry entry : store.list()) {
+                if (entry.id == job.downloadId) { message = entry.completionStatus; break; }
+            }
+        } catch (IOException | RuntimeException error) {
+            message = cancelled(job) ? job.cancelMessage : error.getMessage();
+        } finally {
+            job.finished.set(true);
+            store.setCompletionStatus(job.downloadId, true, message);
+            synchronized (STATE_LOCK) {
+                if (job.token.equals(activeToken)) {
+                    preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
+                            .putBoolean("ready", success).putInt("progress", success ? 100 : 0)
+                            .remove("token").remove("folder").commit();
+                    active = false;
+                    activeToken = null;
+                    cancelledToken = null;
+                }
+            }
+            continueQueue(job);
+        }
+    }
+
+    private void continueQueue(PreparationJob job) {
+        main.post(() -> {
+            if (current != job) return;
+            current = null;
+            // Keep foreground status until the next reservation has been made. This lets a
+            // hidden app continue its queue without a fresh background foreground-service start.
+            new Thread(() -> {
+                try { DownloadCompletion.processPending(getApplicationContext()); }
+                finally {
+                    main.post(() -> {
+                        if (current == null && !isRunning(this)) {
+                            stopForeground(STOP_FOREGROUND_REMOVE);
+                            stopSelf(job.startId);
+                        }
+                    });
+                }
+            }, "thorshelf-next-download").start();
         });
     }
 
@@ -495,7 +625,7 @@ public final class PreparationService extends Service {
                 new Intent(this, PreparationService.class).setAction(ACTION_CANCEL).putExtra("token", job.token),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_shelf)
-                .setContentTitle("Preparing for Azahar").setContentText(message).setContentIntent(open)
+                .setContentTitle("Saving game").setContentText(message).setContentIntent(open)
                 .setOnlyAlertOnce(true).setOngoing(true).setCategory(Notification.CATEGORY_PROGRESS)
                 .setProgress(100, percent, false)
                 .addAction(new Notification.Action.Builder(null, "Cancel", cancel).build()).build();
@@ -514,11 +644,21 @@ public final class PreparationService extends Service {
     private static void requireSpace(File directory, long length, int copies) throws PreparationException {
         long required = length > (Long.MAX_VALUE - STORAGE_RESERVE) / copies
                 ? Long.MAX_VALUE : length * copies + STORAGE_RESERVE;
-        if (directory.getUsableSpace() < required) {
-            long gibibytes = Math.max(1, (long) Math.ceil(required / (1024.0 * 1024 * 1024)));
-            throw new PreparationException("More temporary storage is needed: free at least " + gibibytes
-                    + " GiB on the device and retry. The original download is safe.");
+        long available = Math.max(0, directory.getUsableSpace());
+        if (available < required) {
+            throw new PreparationException("Not enough temporary storage. Free another "
+                    + storageAmount(required - available, RoundingMode.CEILING) + " and retry ("
+                    + storageAmount(required, RoundingMode.CEILING) + " needed; "
+                    + storageAmount(available, RoundingMode.FLOOR)
+                    + " available). The original download is safe.");
         }
+    }
+
+    private static String storageAmount(long bytes, RoundingMode rounding) {
+        long unit = bytes >= (1L << 30) ? 1L << 30 : bytes >= (1L << 20) ? 1L << 20 : 1L << 10;
+        if (bytes < unit) return bytes + " B";
+        String suffix = unit == (1L << 30) ? " GiB" : unit == (1L << 20) ? " MiB" : " KiB";
+        return BigDecimal.valueOf(bytes).divide(BigDecimal.valueOf(unit), 1, rounding).toPlainString() + suffix;
     }
 
     private static Context application(Context context) {
@@ -714,10 +854,13 @@ public final class PreparationService extends Service {
         final String token;
         final Pipeline pipeline;
         final File directory;
+        final boolean cleanupOnly;
         final AtomicBoolean started = new AtomicBoolean();
         final AtomicBoolean finished = new AtomicBoolean();
         volatile boolean cancelled;
         volatile Uri destination;
+        long savedSize;
+        String savedDigest = "";
         volatile boolean requiresInstall = true;
         volatile boolean mayDeleteDestination;
         volatile String cancelMessage = "Preparation cancelled. The original download is safe.";
@@ -727,7 +870,7 @@ public final class PreparationService extends Service {
         int lastPercent = -1;
         long lastUpdate;
 
-        PreparationJob(int startId, long downloadId, Uri folder, String name, String token, Pipeline pipeline, File directory) {
+        PreparationJob(int startId, long downloadId, Uri folder, String name, String token, Pipeline pipeline, File directory, boolean cleanupOnly) {
             this.startId = startId;
             this.downloadId = downloadId;
             this.folder = folder;
@@ -735,6 +878,7 @@ public final class PreparationService extends Service {
             this.token = token;
             this.pipeline = pipeline;
             this.directory = directory;
+            this.cleanupOnly = cleanupOnly;
         }
     }
 }

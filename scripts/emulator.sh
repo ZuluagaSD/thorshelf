@@ -6,7 +6,16 @@ toolchain_dir="${THORSHELF_TOOLCHAIN_DIR:-/tmp/thorshelf-toolchain}"
 export JAVA_HOME="${JAVA_HOME:-$toolchain_dir/jdk}"
 export ANDROID_HOME="${ANDROID_HOME:-$toolchain_dir/android-sdk}"
 export ANDROID_USER_HOME="${ANDROID_USER_HOME:-$toolchain_dir/android-user-home}"
-export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$toolchain_dir/avd}"
+# Keep game-sized userdata on the workspace disk; /tmp may be a small RAM disk.
+# Reuse an older installation until it has been explicitly migrated.
+if [[ -z "${ANDROID_AVD_HOME:-}" ]]; then
+    persistent_avd_dir="$project_dir/dist/android-emulator/avd"
+    if [[ -f "$persistent_avd_dir/ThorShelf_API_33.ini" || ! -f "$toolchain_dir/avd/ThorShelf_API_33.ini" ]]; then
+        export ANDROID_AVD_HOME="$persistent_avd_dir"
+    else
+        export ANDROID_AVD_HOME="$toolchain_dir/avd"
+    fi
+fi
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 
 avd_name="ThorShelf_API_33"
@@ -42,7 +51,7 @@ values.update({
     "avd.ini.displayname": "ThorShelf - Android 13",
     "hw.ramSize": "4096",
     "hw.cpu.ncore": "4",
-    "disk.dataPartition.size": "6G",
+    "disk.dataPartition.size": "16G",
     "hw.keyboard": "yes",
     "showDeviceFrame": "no",
     "hw.lcd.width": "1080",

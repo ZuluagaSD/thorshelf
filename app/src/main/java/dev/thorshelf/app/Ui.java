@@ -112,7 +112,15 @@ final class Ui {
         return makeButton(c, label, action, false, true);
     }
 
+    static Button settingsButton(Context c, String label, Runnable action, boolean primary) {
+        return makeButton(c, label, action, primary, false, 12);
+    }
+
     private static Button makeButton(Context c, String label, Runnable action, boolean primary, boolean tab) {
+        return makeButton(c, label, action, primary, tab, 26);
+    }
+
+    private static Button makeButton(Context c, String label, Runnable action, boolean primary, boolean tab, int radius) {
         Button b = new Button(c);
         b.setText(label);
         b.setTextSize(tab ? 14 : 13);
@@ -134,23 +142,23 @@ final class Ui {
         int fill = primary ? ACCENT : tab ? Color.TRANSPARENT : SOFT;
         int stroke = primary || tab ? 0 : BORDER;
         StateListDrawable states = new StateListDrawable();
-        states.addState(new int[] {-android.R.attr.state_enabled}, rounded(c, SOFT, BORDER, 26));
+        states.addState(new int[] {-android.R.attr.state_enabled}, rounded(c, SOFT, BORDER, radius));
         states.addState(new int[] {android.R.attr.state_focused, android.R.attr.state_selected},
-                focusBackground(c, tab ? ACCENT : fill));
-        states.addState(new int[] {android.R.attr.state_focused}, focusBackground(c, fill));
-        states.addState(new int[] {android.R.attr.state_selected}, rounded(c, tab ? ACCENT : fill, stroke, 26));
-        states.addState(new int[] {}, rounded(c, fill, stroke, 26));
+                focusBackground(c, tab ? ACCENT : fill, radius));
+        states.addState(new int[] {android.R.attr.state_focused}, focusBackground(c, fill, radius));
+        states.addState(new int[] {android.R.attr.state_selected}, rounded(c, tab ? ACCENT : fill, stroke, radius));
+        states.addState(new int[] {}, rounded(c, fill, stroke, radius));
         b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x30F58821), states,
-                rounded(c, Color.WHITE, 0, 26)));
+                rounded(c, Color.WHITE, 0, radius)));
         b.setOnClickListener(v -> action.run());
         return b;
     }
 
     /** Keep controller focus visible even when the focused tab is already selected. */
-    private static Drawable focusBackground(Context c, int fill) {
-        GradientDrawable outer = rounded(c, SURFACE, 0, 26);
+    private static Drawable focusBackground(Context c, int fill, int radius) {
+        GradientDrawable outer = rounded(c, SURFACE, 0, radius);
         outer.setStroke(dp(c, 2), ORANGE);
-        GradientDrawable inner = rounded(c, fill == Color.TRANSPARENT ? SOFT : fill, 0, 22);
+        GradientDrawable inner = rounded(c, fill == Color.TRANSPARENT ? SOFT : fill, 0, Math.max(0, radius - 4));
         LayerDrawable layers = new LayerDrawable(new Drawable[] {outer, inner});
         int inset = dp(c, 4);
         layers.setLayerInset(1, inset, inset, inset, inset);

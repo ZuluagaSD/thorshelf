@@ -105,7 +105,7 @@ public class PreparationServiceTest {
         PreparationService.pipeline = productionPipeline;
     }
 
-    @Test public void savesPreparedBytesAndPreservesOriginal() throws Exception {
+    @Test public void savesVerifiedBytesAndRemovesOriginalWhileKeepingCompletedCard() throws Exception {
         long otherId = new DownloadStore(app).enqueue("https://download2.erista.me/other", "other.cia",
                 null, null, "https://hshop.erista.me/t/43", true);
         shadowOf(shadowOf(app.getSystemService(DownloadManager.class)).getRequest(otherId))
@@ -124,37 +124,35 @@ public class PreparationServiceTest {
         assertEquals(documents.folder, documents.createdParent);
         assertArrayEquals(preparedBytes, Files.readAllBytes(documents.createdFile().toPath()));
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
-        assertTrue("The successfully prepared download must retain its own record", entry(downloadId).isPrepared());
+        assertTrue("The saved game must retain its own record", entry(downloadId).isPrepared());
+        assertTrue(entry(downloadId).originalDeleted);
+        assertTrue(entry(downloadId).isComplete());
+        assertNull(new DownloadStore(app).completedUri(downloadId));
+        assertNull(shadowOf(app.getSystemService(DownloadManager.class)).getRequest(downloadId));
         assertFalse("Global readiness must not mark another download as prepared", entry(otherId).isPrepared());
         assertTrue(documents.deleted.isEmpty());
         assertWorkspaceEmpty();
     }
 
-    @Test public void failedRepeatPreparationPreservesEarlierSuccessfulCopy() throws Exception {
+    @Test public void completedGameIsNotPreparedAgainOnRefresh() throws Exception {
         launch(documents.tree);
         awaitFinished();
         File successfulCopy = documents.createdFile();
-        service.destroy();
-        service = null;
         PreparationService.pipeline = (context, input, output, scratch, progress) -> {
-            throw new IOException("Synthetic preparation failure");
+            throw new AssertionError("A saved game must not be prepared twice");
         };
-
-        launch(documents.tree);
-        awaitFinished();
-
-        assertFalse(PreparationService.isReady(app));
-        assertTrue("A failed retry must keep the earlier successful preparation record", entry(downloadId).isPrepared());
+        DownloadCompletion.processPending(app);
+        assertNull(shadowOf(app).getNextStartedService());
+        assertTrue(entry(downloadId).originalDeleted);
         assertArrayEquals(preparedBytes, Files.readAllBytes(successfulCopy.toPath()));
-        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
-        assertTrue(documents.deleted.isEmpty());
+        assertEquals(1, documents.createCalls);
     }
 
-    @Test public void cannotDeletePreparedOriginalWhileItIsBeingPreparedAgain() throws Exception {
-        launch(documents.tree);
-        awaitFinished();
-        service.destroy();
-        service = null;
+    @Test public void cannotDeleteOriginalWhileItsSavedGameIsBeingRebuilt() throws Exception {
+        Uri existing = newDestination("existing-prepared");
+        Files.write(documents.files.get(existing).toPath(), preparedBytes);
+        assertTrue(new DownloadStore(app).markPrepared(downloadId, existing, false, preparedBytes.length,
+                DownloadStore.hex(java.security.MessageDigest.getInstance("SHA-256").digest(preparedBytes))));
         CountDownLatch preparing = gatePipeline();
         launch(documents.tree);
         assertTrue("Pipeline did not start", preparing.await(5, TimeUnit.SECONDS));
@@ -174,13 +172,16 @@ public class PreparationServiceTest {
     }
 
     @Test public void pendingOriginalDeletionBlocksPreparationWithoutBlockingStatusReads() throws Exception {
-        launch(documents.tree);
-        awaitFinished();
-        File preparedCopy = documents.createdFile();
+        Uri existing = newDestination("existing-prepared");
+        File preparedCopy = documents.files.get(existing);
+        Files.write(preparedCopy.toPath(), preparedBytes);
+        assertTrue(new DownloadStore(app).markPrepared(downloadId, existing, false, preparedBytes.length,
+                DownloadStore.hex(java.security.MessageDigest.getInstance("SHA-256").digest(preparedBytes))));
         CountDownLatch readingCopy = new CountDownLatch(1);
         CountDownLatch finishRead = new CountDownLatch(1);
         ExecutorService callers = Executors.newFixedThreadPool(2);
-        shadowOf(app.getContentResolver()).registerInputStreamSupplier(documents.createdUri, () -> new InputStream() {
+        shadowOf(app.getContentResolver()).registerInputStreamSupplier(existing, () -> new InputStream() {
+            int offset;
             @Override public int read() throws IOException {
                 readingCopy.countDown();
                 try {
@@ -189,14 +190,14 @@ public class PreparationServiceTest {
                     Thread.currentThread().interrupt();
                     throw new InterruptedIOException("Interrupted fixture read");
                 }
-                return preparedBytes[0] & 0xff;
+                return offset < preparedBytes.length ? preparedBytes[offset++] & 0xff : -1;
             }
         });
         Future<?> deletion = callers.submit(() -> PreparationService.deleteOriginal(app, downloadId));
         try {
             assertTrue("Copy validation did not start", readingCopy.await(5, TimeUnit.SECONDS));
             Future<Boolean> running = callers.submit(() -> {
-                assertTrue(PreparationService.status(app).contains("Saved"));
+                PreparationService.status(app);
                 return PreparationService.isRunning(app);
             });
             assertFalse("A provider read must not block UI status queries", running.get(1, TimeUnit.SECONDS));
@@ -214,7 +215,7 @@ public class PreparationServiceTest {
             try { deletion.get(5, TimeUnit.SECONDS); }
             finally { callers.shutdownNow(); }
         }
-        assertTrue(new DownloadStore(app).list().isEmpty());
+        assertTrue(entry(downloadId).originalDeleted);
         assertArrayEquals(preparedBytes, Files.readAllBytes(preparedCopy.toPath()));
         assertTrue(documents.deleted.isEmpty());
     }
@@ -224,7 +225,7 @@ public class PreparationServiceTest {
             PreparationService.deleteOriginal(app, downloadId);
             fail("An unprepared download cannot be deleted");
         } catch (IllegalStateException expected) {
-            assertTrue(expected.getMessage().contains("Prepare"));
+            assertTrue(expected.getMessage().contains("Save"));
         }
 
         launch(documents.tree);
@@ -275,6 +276,90 @@ public class PreparationServiceTest {
         assertFalse(documents.createdFile().exists());
         assertFolderPreserved();
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void corruptedSavedBytesKeepOriginalAndDeleteUnverifiedOutput() throws Exception {
+        documents.corruptOnClose = true;
+        launch(documents.tree);
+        awaitFinished();
+        assertFalse(PreparationService.isReady(app));
+        assertFalse(entry(downloadId).isPrepared());
+        assertTrue(entry(downloadId).completionAttempted);
+        assertTrue(PreparationService.status(app).contains("could not be verified"));
+        assertNotNull(new DownloadStore(app).completedUri(downloadId));
+        assertFalse(documents.createdFile().exists());
+        assertFolderPreserved();
+    }
+
+    @Test public void failureIsNotAutomaticallyRetriedAndExplicitRetryStartsAgain() throws Exception {
+        PreparationService.pipeline = (context, input, output, scratch, progress) -> { throw new IOException("Failure"); };
+        launch(documents.tree);
+        awaitFinished();
+        assertTrue(entry(downloadId).completionAttempted);
+        rememberFolder();
+        DownloadCompletion.processPending(app);
+        assertNull(shadowOf(app).getNextStartedService());
+        DownloadCompletion.retry(app, downloadId);
+        Intent retry = shadowOf(app).getNextStartedService();
+        assertNotNull(retry);
+        // Deliver the queued retry to the existing test service so teardown can finish its worker.
+        service.get().onStartCommand(retry, 0, 2);
+        awaitFinished();
+    }
+
+    @Test public void verifiedCopyCleanupRunsInServiceWithoutRebuildingGame() throws Exception {
+        Uri saved = newDestination("already-saved");
+        Files.write(documents.files.get(saved).toPath(), preparedBytes);
+        assertTrue(new DownloadStore(app).markPrepared(downloadId, saved, false, preparedBytes.length,
+                DownloadStore.hex(java.security.MessageDigest.getInstance("SHA-256").digest(preparedBytes))));
+        PreparationService.pipeline = (context, input, output, scratch, progress) -> {
+            throw new AssertionError("An already verified copy needs only source cleanup");
+        };
+        DownloadCompletion.processPending(app);
+        Intent cleanup = shadowOf(app).getNextStartedService();
+        assertNotNull(cleanup);
+        assertTrue(cleanup.getBooleanExtra("cleanup_only", false));
+        assertNotNull(new DownloadStore(app).completedUri(downloadId));
+        service = Robolectric.buildService(PreparationService.class, cleanup).create().startCommand(0, 1);
+        awaitFinished();
+        assertTrue(entry(downloadId).originalDeleted);
+        assertTrue(entry(downloadId).completionStatus.contains("Refresh Azahar"));
+        assertArrayEquals(preparedBytes, Files.readAllBytes(documents.files.get(saved).toPath()));
+        assertEquals(0, documents.createCalls);
+    }
+
+    @Test public void completedGamesAreAutomaticallyProcessedInOrder() throws Exception {
+        long second = new DownloadStore(app).enqueue("https://download2.erista.me/second", "second.cia",
+                null, null, "https://hshop.erista.me/t/43", true);
+        DownloadManager manager = app.getSystemService(DownloadManager.class);
+        shadowOf(shadowOf(manager).getRequest(second)).setStatus(DownloadManager.STATUS_SUCCESSFUL);
+        Uri secondSource = manager.getUriForDownloadedFile(second);
+        ExportServiceTest.FileProvider provider = registerProvider(secondSource.getAuthority());
+        provider.files.put(manager.getUriForDownloadedFile(downloadId), sourceFile);
+        provider.files.put(secondSource, sourceFile);
+        rememberFolder();
+        DownloadCompletion.processPending(app);
+        Intent first = shadowOf(app).getNextStartedService();
+        assertNotNull(first);
+        assertEquals(downloadId, first.getLongExtra("download_id", -1));
+        service = Robolectric.buildService(PreparationService.class, first).create().startCommand(0, 1);
+        await(() -> entry(downloadId).originalDeleted && !PreparationService.isRunning(app));
+        shadowOf(Looper.getMainLooper()).idle();
+        await(() -> PreparationService.isRunning(app));
+        Intent next = shadowOf(app).getNextStartedService();
+        assertNotNull(next);
+        assertEquals(second, next.getLongExtra("download_id", -1));
+        service.get().onStartCommand(next, 0, 2);
+        awaitFinished();
+        assertTrue(entry(second).originalDeleted);
+        assertEquals(2, documents.createCalls);
+    }
+
+    private void rememberFolder() {
+        app.getContentResolver().takePersistableUriPermission(documents.tree,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        app.getSharedPreferences("settings", Context.MODE_PRIVATE).edit()
+                .putString(PreparationFolder.PREFERENCE, documents.tree.toString()).commit();
     }
 
     @Test public void existingDestinationIsNeverOverwrittenOrDeleted() throws Exception {
@@ -541,6 +626,7 @@ public class PreparationServiceTest {
         volatile int openedFolders;
         volatile boolean failWrite;
         volatile boolean failClose;
+        volatile boolean corruptOnClose;
 
         @Override public boolean onCreate() { return true; }
 
@@ -627,6 +713,11 @@ public class PreparationServiceTest {
                         }
                         @Override public void close() throws IOException {
                             stream.close();
+                            if (corruptOnClose) {
+                                byte[] damaged = Files.readAllBytes(file.toPath());
+                                if (damaged.length > 0) damaged[damaged.length - 1] ^= 1;
+                                Files.write(file.toPath(), damaged);
+                            }
                             if (failClose) throw new IOException("Synthetic remote commit failure");
                         }
                     };

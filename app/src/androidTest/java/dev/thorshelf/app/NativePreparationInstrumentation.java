@@ -17,15 +17,30 @@ public final class NativePreparationInstrumentation extends Instrumentation {
     private final StringBuilder report = new StringBuilder();
     private int passed;
     private boolean seedDemo;
+    private boolean testCompletion;
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
         seedDemo = arguments != null && "true".equalsIgnoreCase(arguments.getString("seed_demo"));
+        testCompletion = arguments != null && "true".equalsIgnoreCase(arguments.getString("test_completion"));
         start();
     }
 
     @Override public void onStart() {
         Bundle results = new Bundle();
+        if (testCompletion) {
+            try {
+                long id = AutomaticCompletionSmoke.run(getTargetContext(), this);
+                results.putLong("demo_download_id", id);
+                results.putString("stream", "PASS automatic completion: encrypted synthetic CIA became one verified cartridge in the selected folder; original removed; saved history retained; repeat trigger created no duplicate. Download ID " + id + ". No network request was made.\n");
+                finish(Activity.RESULT_OK, results);
+            } catch (Throwable failure) {
+                results.putString("stream", "Automatic completion failed: " + failure + "\n" + android.util.Log.getStackTraceString(failure));
+                results.putString("failure", failure.toString());
+                finish(Activity.RESULT_CANCELED, results);
+            }
+            return;
+        }
         if (seedDemo) {
             try {
                 long id = SyntheticDemoSeeder.seed(getTargetContext());

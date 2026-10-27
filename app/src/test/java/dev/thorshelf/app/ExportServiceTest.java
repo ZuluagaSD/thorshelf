@@ -29,6 +29,7 @@ import org.robolectric.shadows.ShadowContentResolver;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -90,6 +91,7 @@ public class ExportServiceTest {
     @Test public void completedCopyMatchesSourceAndKeepsOriginal() throws Exception {
         Uri destination = newDestination("complete");
         File output = documents.files.get(destination);
+        persistGrant(destination);
         launch(destination);
         awaitFinished();
 
@@ -98,6 +100,8 @@ public class ExportServiceTest {
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
         assertTrue(documents.deleted.isEmpty());
         assertNotNull(new DownloadStore(app).completedUri(downloadId));
+        assertNull(new DownloadStore(app).list().get(0).savedDsDestination);
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
     }
 
     @Test public void failedWriteRemovesPartialDestinationAndKeepsOriginal() throws Exception {
@@ -184,6 +188,7 @@ public class ExportServiceTest {
                 new byte[][]{new byte[]{1, 2, 3}, rom}, false));
         Uri destination = newDestination("nds-extracted");
         File output = documents.files.get(destination);
+        persistGrant(destination);
         launchNds(destination, "synthetic.nds");
         awaitFinished();
 
@@ -191,18 +196,75 @@ public class ExportServiceTest {
         assertArrayEquals(rom, Files.readAllBytes(output.toPath()));
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
         assertTrue(documents.deleted.isEmpty());
+        assertEquals(destination, new DownloadStore(app).savedDsUri(downloadId));
+        assertReadOnlyGrant(destination);
     }
 
     @Test public void ndsExportCopiesDirectRom() throws Exception {
         replaceSource("synthetic.nds", sourceBytes);
         Uri destination = newDestination("nds-direct");
         File output = documents.files.get(destination);
+        persistGrant(destination);
         launchNds(destination, "synthetic.nds");
         awaitFinished();
 
         assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export complete:"));
         assertArrayEquals(sourceBytes, Files.readAllBytes(output.toPath()));
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        assertEquals(destination, new DownloadStore(app).savedDsUri(downloadId));
+        assertReadOnlyGrant(destination);
+    }
+
+    @Test public void failedDsOutputCloseDoesNotRecordDestinationOrRetainGrant() throws Exception {
+        replaceSource("synthetic.nds", sourceBytes);
+        Uri destination = newDestination("nds-close-failed");
+        File output = documents.files.get(destination);
+        persistGrant(destination);
+        shadowOf(app.getContentResolver()).registerOutputStreamSupplier(destination, () -> {
+            try {
+                return new FilterOutputStream(Files.newOutputStream(output.toPath())) {
+                    @Override public void close() throws IOException {
+                        super.close();
+                        throw new IOException("Synthetic provider commit failure");
+                    }
+                };
+            } catch (IOException e) { throw new IllegalStateException(e); }
+        });
+        launchNds(destination, "synthetic.nds");
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export failed."));
+        assertNull(new DownloadStore(app).list().get(0).savedDsDestination);
+        assertNull(new DownloadStore(app).savedDsUri(downloadId));
+        assertFalse(output.exists());
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
+    }
+
+    @Test public void lostDownloadRecordAfterCopyDoesNotDeleteCompletedDsExport() throws Exception {
+        replaceSource("synthetic.nds", sourceBytes);
+        Uri destination = newDestination("nds-metadata-failed");
+        File output = documents.files.get(destination);
+        persistGrant(destination);
+        shadowOf(app.getContentResolver()).registerOutputStreamSupplier(destination, () -> {
+            try {
+                return new FilterOutputStream(Files.newOutputStream(output.toPath())) {
+                    @Override public void close() throws IOException {
+                        super.close();
+                        app.getSharedPreferences("thorshelf_downloads_v1", Context.MODE_PRIVATE)
+                                .edit().remove("records").commit();
+                    }
+                };
+            } catch (IOException e) { throw new IllegalStateException(e); }
+        });
+        launchNds(destination, "synthetic.nds");
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export complete:"));
+        assertTrue(ExportService.status(app).contains("open the saved file from melonDS"));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(output.toPath()));
+        assertTrue(documents.deleted.isEmpty());
+        assertNull(new DownloadStore(app).savedDsUri(downloadId));
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
     }
 
     @Test public void invalidMultiRomArchiveRemovesPartialNdsDestination() throws Exception {
@@ -210,6 +272,7 @@ public class ExportServiceTest {
                 new byte[][]{sourceBytes, new byte[]{1, 2, 3}}, false));
         Uri destination = newDestination("nds-multiple");
         File output = documents.files.get(destination);
+        persistGrant(destination);
         launchNds(destination, "synthetic.nds");
         awaitFinished();
 
@@ -217,6 +280,8 @@ public class ExportServiceTest {
         assertFalse(output.exists());
         assertTrue(documents.deleted.containsKey(destination));
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        assertNull(new DownloadStore(app).list().get(0).savedDsDestination);
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
     }
 
     @Test public void ndsExportDoesNotTrustCallerNameToReclassifyCia() throws Exception {
@@ -280,6 +345,7 @@ public class ExportServiceTest {
                 new byte[][]{sourceBytes}, false));
         Uri destination = newDestination("nds-cancelled");
         File output = documents.files.get(destination);
+        persistGrant(destination);
         CountDownLatch reading = new CountDownLatch(1);
         unblockCopy = new CountDownLatch(1);
         shadowOf(app.getContentResolver()).registerInputStreamSupplier(sourceUri, () -> {
@@ -307,13 +373,19 @@ public class ExportServiceTest {
         assertTrue(ExportService.status(app), ExportService.status(app).contains("interrupted"));
         assertFalse(output.exists());
         assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        assertNull(new DownloadStore(app).list().get(0).savedDsDestination);
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
     }
 
     private void replaceSource(String name, byte[] bytes) throws IOException {
         sourceBytes = bytes;
         Files.write(sourceFile.toPath(), bytes);
         DownloadManager manager = app.getSystemService(DownloadManager.class);
-        downloadId = new DownloadStore(app).enqueue("https://download2.erista.me/test", name,
+        DownloadStore store = new DownloadStore(app);
+        downloadId = name.endsWith(".nds") || name.endsWith(".zip")
+                ? store.enqueueNds("https://github.com/owner/game/releases/download/v1/" + name,
+                name, null, NdsCatalog.HOME, true)
+                : store.enqueue("https://download2.erista.me/test", name,
                 null, null, "https://hshop.erista.me/t/42", true);
         shadowOf(shadowOf(manager).getRequest(downloadId)).setStatus(DownloadManager.STATUS_SUCCESSFUL);
         sourceUri = manager.getUriForDownloadedFile(downloadId);
@@ -334,6 +406,19 @@ public class ExportServiceTest {
             catch (IOException e) { throw new IllegalStateException(e); }
         });
         return uri;
+    }
+
+    private void persistGrant(Uri destination) {
+        app.getContentResolver().takePersistableUriPermission(destination,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+    }
+
+    private void assertReadOnlyGrant(Uri destination) {
+        assertEquals(1, app.getContentResolver().getPersistedUriPermissions().size());
+        android.content.UriPermission permission = app.getContentResolver().getPersistedUriPermissions().get(0);
+        assertEquals(destination, permission.getUri());
+        assertTrue(permission.isReadPermission());
+        assertFalse(permission.isWritePermission());
     }
 
     private void launch(Uri destination) {

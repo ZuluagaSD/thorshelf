@@ -1,6 +1,7 @@
 package dev.thorshelf.app;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.Intent;
 import android.content.res.Configuration;
@@ -23,9 +24,11 @@ import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
 import org.robolectric.shadows.ShadowActivity;
+import org.robolectric.shadows.ShadowAlertDialog;
 import org.robolectric.util.ReflectionHelpers;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -237,6 +240,7 @@ public class NdsUiTest {
         assertEquals(Intent.ACTION_CREATE_DOCUMENT, picker.intent.getAction());
         assertEquals("Tiny Adventure.nds", picker.intent.getStringExtra(Intent.EXTRA_TITLE));
         assertNull(optionalButton("Prepare for Azahar"));
+        assertNull(optionalButton("Open in melonDS"));
         activity.onActivityResult(45, MainActivity.RESULT_CANCELED, null);
         assertEquals(id, new DownloadStore(activity).list().get(0).id);
         assertNull(shadowOf(activity).getNextStartedService());
@@ -258,6 +262,86 @@ public class NdsUiTest {
         assertEquals("Tiny Adventure.nds", started.getStringExtra("name"));
         assertFalse(PreparationService.isRunning(activity));
         assertEquals(1, new DownloadStore(activity).list().size());
+    }
+
+    @Test public void emulatorShortcutFollowsPlatformAndSurvivesRotation() {
+        assertNotNull(optionalButton("Azahar ↗"));
+        openDs();
+        assertNotNull(optionalButton("melonDS ↗"));
+        assertNull(optionalButton("Azahar ↗"));
+        rotate();
+        button("melonDS ↗").performClick();
+        AlertDialog help = ShadowAlertDialog.getLatestAlertDialog();
+        assertEquals("Open in melonDS", shadowOf(help).getTitle().toString());
+        help.dismiss();
+        button("3DS").performClick();
+        assertNotNull(optionalButton("Azahar ↗"));
+    }
+
+    @Test public void dsZipWithCatalogHomeSourceOffersSaveAndLaunch() {
+        long id = new DownloadStore(activity).enqueueNds(
+                "https://github.com/owner/game/releases/download/v1/Game.zip",
+                "Game.zip", null, NdsCatalog.HOME, true);
+        shadowOf(shadowOf(manager).getRequest(id)).setStatus(DownloadManager.STATUS_SUCCESSFUL);
+        button("Downloads").performClick();
+        await("DS ZIP save action", () -> optionalButton("Save DS game") != null);
+        assertNull(optionalButton("Open in melonDS"));
+        assertTrue(new DownloadStore(activity).markDsSaved(id, Uri.parse("content://synthetic.documents/game")));
+        button("Downloads").performClick();
+        await("DS ZIP launch action", () -> optionalButton("Open in melonDS") != null);
+        assertNull(optionalButton("Prepare for Azahar"));
+    }
+
+    @Test public void settingsOffersMelonDsAndExplainsWhenItIsMissing() {
+        button("Settings").performClick();
+        button("Open melonDS").performClick();
+        AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
+        assertEquals("melonDS is unavailable", shadowOf(dialog).getTitle().toString());
+        assertEquals("Get melonDS", dialog.getButton(AlertDialog.BUTTON_POSITIVE).getText().toString());
+        assertNull(shadowOf(activity).getNextStartedActivity());
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        shadowOf(Looper.getMainLooper()).idle();
+        Intent website = shadowOf(activity).getNextStartedActivity();
+        assertEquals(Intent.ACTION_VIEW, website.getAction());
+        assertEquals(MelonDsLauncher.WEBSITE, website.getDataString());
+    }
+
+    @Test public void savedDsActionAppearsAfterExportAndPersistsAfterRotation() {
+        long id = addCompletedDs();
+        assertNull(optionalButton("Open in melonDS"));
+        Uri saved = Uri.parse("content://synthetic.documents/saved-game");
+        assertTrue(new DownloadStore(activity).markDsSaved(id, saved));
+        // Refresh existing cards without rebuilding the activity or changing download status.
+        button("Downloads").performClick();
+        await("saved DS launch action", () -> optionalButton("Open in melonDS") != null);
+        rotate();
+        await("restored DS launch action", () -> optionalButton("Open in melonDS") != null);
+        shadowOf(activity.getContentResolver()).registerInputStreamSupplier(saved,
+                () -> new ByteArrayInputStream(new byte[] {1}));
+        button("Open in melonDS").performClick();
+        await("missing melonDS guidance", () -> ShadowAlertDialog.getLatestAlertDialog() != null);
+        assertEquals("melonDS is unavailable", shadowOf(ShadowAlertDialog.getLatestAlertDialog()).getTitle().toString());
+        assertEquals(saved, new DownloadStore(activity).list().get(0).savedDsDestination);
+        assertNull(optionalButton("Prepare for Azahar"));
+    }
+
+    @Test public void missingSavedDsFileOffersSaveAgainWithoutLaunching() {
+        long id = addCompletedDs();
+        Uri saved = Uri.parse("content://synthetic.documents/missing-game");
+        assertTrue(new DownloadStore(activity).markDsSaved(id, saved));
+        shadowOf(activity.getContentResolver()).registerInputStreamSupplier(saved,
+                () -> new ByteArrayInputStream(new byte[0]));
+        button("Downloads").performClick();
+        await("saved DS action", () -> optionalButton("Open in melonDS") != null);
+        button("Open in melonDS").performClick();
+        await("unavailable saved game", () -> ShadowAlertDialog.getLatestAlertDialog() != null);
+        AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
+        assertEquals("Saved DS game unavailable", shadowOf(dialog).getTitle().toString());
+        assertNull(shadowOf(activity).getNextStartedActivity());
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        shadowOf(Looper.getMainLooper()).idle();
+        assertEquals(Intent.ACTION_CREATE_DOCUMENT,
+                shadowOf(activity).getNextStartedActivityForResult().intent.getAction());
     }
 
     private long addCompletedDs() {

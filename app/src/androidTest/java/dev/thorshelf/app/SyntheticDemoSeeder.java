@@ -20,9 +20,18 @@ final class SyntheticDemoSeeder {
 
     @SuppressWarnings("deprecation")
     static long seed(Context context) throws Exception {
+        return seed(context, true);
+    }
+
+    static long seedFresh(Context context) throws Exception {
+        return seed(context, false);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static long seed(Context context, boolean reuse) throws Exception {
         DownloadStore store = new DownloadStore(context);
         for (DownloadStore.Entry entry : store.list()) {
-            if (NAME.equals(entry.name) && entry.isComplete() && store.completedUri(entry.id) != null) {
+            if (reuse && NAME.equals(entry.name) && entry.isComplete() && store.completedUri(entry.id) != null) {
                 return entry.id;
             }
         }

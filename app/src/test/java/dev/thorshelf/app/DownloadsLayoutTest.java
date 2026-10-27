@@ -52,11 +52,10 @@ public class DownloadsLayoutTest {
         renderAndLayout(960, 400);
 
         assertFullWidthQueue();
-        assertActionReachable("Prepare for Azahar", button("Prepare for Azahar"));
-        assertActionReachable("Delete original", button("Delete original"));
+        assertActionReachable("Open Azahar", button("Open Azahar"));
     }
 
-    @Test public void scrollingManyDownloadsReachesTheLastCardAndItsPreparationAction() {
+    @Test public void scrollingManyDownloadsReachesTheLastCardAndItsFolderAction() {
         launch(1f);
         addDownloads(12);
         renderAndLayout(960, 400);
@@ -66,10 +65,10 @@ public class DownloadsLayoutTest {
         assertTrue("Fixture must overflow the queue", queue().getScrollY() > 0);
         ViewGroup list = (ViewGroup) field("downloadList");
         View lastCard = list.getChildAt(list.getChildCount() - 1);
-        Button prepare = find(lastCard, Button.class, view -> "Prepare for Azahar".contentEquals(view.getText()));
-        assertNotNull(prepare);
-        assertContained("The last download's action", prepare, queue());
-        assertTrue(prepare.isEnabled());
+        Button folder = find(lastCard, Button.class, view -> "Choose games folder".contentEquals(view.getText()));
+        assertNotNull(folder);
+        assertContained("The last download's action", folder, queue());
+        assertTrue(folder.isEnabled());
     }
 
     @Test @Config(qualifiers = "w800dp-h280dp-land-mdpi")
@@ -86,8 +85,7 @@ public class DownloadsLayoutTest {
         assertEquals("The title must wrap without silently losing its ending", 0,
                 titleView.getLayout().getEllipsisCount(titleView.getLayout().getLineCount() - 1));
         assertFullWidthQueue();
-        assertActionReachable("Prepare for Azahar", button("Prepare for Azahar"));
-        assertActionReachable("Delete original", button("Delete original"));
+        assertActionReachable("Open Azahar", button("Open Azahar"));
         assertTrue("Long content must remain scrollable", queue().getScrollY() > 0);
     }
 
@@ -102,25 +100,25 @@ public class DownloadsLayoutTest {
         assertTrue(queue().getScrollY() > 0);
         ViewGroup list = (ViewGroup) field("downloadList");
         View lastCard = list.getChildAt(list.getChildCount() - 1);
-        Button prepare = find(lastCard, Button.class, view -> "Prepare for Azahar".contentEquals(view.getText()));
-        assertNotNull(prepare);
-        assertContained("The last portrait action", prepare, queue());
+        Button folder = find(lastCard, Button.class, view -> "Choose games folder".contentEquals(view.getText()));
+        assertNotNull(folder);
+        assertContained("The last portrait action", folder, queue());
     }
 
     @Test public void resizingTheQueuePreservesFocusedDownloadAction() {
         launch(1f);
         addDownload(TITLE + ".cia");
         renderAndLayout(960, 400);
-        Button prepare = button("Prepare for Azahar");
-        prepare.setFocusableInTouchMode(true);
-        assertTrue(prepare.requestFocus());
+        Button folder = button("Choose games folder");
+        folder.setFocusableInTouchMode(true);
+        assertTrue(folder.requestFocus());
 
         renderAndLayout(411, 891);
-        assertTrue("Resizing to portrait must preserve controller focus", prepare.hasFocus());
+        assertTrue("Resizing to portrait must preserve controller focus", folder.hasFocus());
         assertFullWidthQueue();
         renderAndLayout(960, 400);
-        assertTrue("Resizing to landscape must preserve controller focus", prepare.hasFocus());
-        assertActionReachable("Prepare for Azahar", prepare);
+        assertTrue("Resizing to landscape must preserve controller focus", folder.hasFocus());
+        assertActionReachable("Choose games folder", folder);
     }
 
     private void launch(float fontScale) {
@@ -152,7 +150,9 @@ public class DownloadsLayoutTest {
         JSONArray array = new JSONArray(records.getString("records", "[]"));
         for (int i = 0; i < array.length(); i++) {
             if (array.getJSONObject(i).getLong("id") == id) {
-                array.getJSONObject(i).put("preparedDestination", "content://synthetic.documents/prepared-" + id);
+                array.getJSONObject(i).put("preparedDestination", "content://synthetic.documents/prepared-" + id)
+                        .put("originalDeleted", true).put("completionAttempted", true)
+                        .put("completionStatus", "Saved to your games folder.");
             }
         }
         assertTrue(records.edit().putString("records", array.toString()).commit());

@@ -179,7 +179,7 @@ public class DownloadStoreIntegrationTest {
         long preparedId = complete("Prepared.cia");
         long untouchedId = complete("Untouched.cia");
         Uri destination = preparedCopy("prepared.cia", new byte[]{1, 2, 3});
-        assertTrue(store.markPrepared(preparedId, destination));
+        assertTrue(markVerified(preparedId, destination));
 
         store = new DownloadStore(context);
         assertTrue(entry(preparedId).isPrepared());
@@ -247,7 +247,7 @@ public class DownloadStoreIntegrationTest {
     @Test public void missingOrEmptyPreparedCopyKeepsOriginalAvailable() throws Exception {
         long id = complete("Sample.cia");
         Uri destination = preparedCopy("prepared.cia", new byte[]{1, 2, 3});
-        assertTrue(store.markPrepared(id, destination));
+        assertTrue(markVerified(id, destination));
         File prepared = documents.files.remove(destination);
         assertThrows(IllegalStateException.class, () -> store.deletePreparedOriginal(id));
         assertNotNull(queue.getRequest(id));
@@ -262,7 +262,7 @@ public class DownloadStoreIntegrationTest {
 
     @Test public void deletionRechecksOriginalCompletion() throws Exception {
         long id = complete("Sample.cia");
-        assertTrue(store.markPrepared(id, preparedCopy("prepared.cia", new byte[]{1})));
+        assertTrue(markVerified(id, preparedCopy("prepared.cia", new byte[]{1})));
         shadowOf(queue.getRequest(id)).setStatus(DownloadManager.STATUS_RUNNING);
         assertThrows(IllegalStateException.class, () -> store.deletePreparedOriginal(id));
         assertNotNull(queue.getRequest(id));
@@ -275,8 +275,8 @@ public class DownloadStoreIntegrationTest {
         byte[] preparedBytes = {5, 4, 3, 2, 1};
         Uri destination = preparedCopy("prepared.cia", preparedBytes);
         Uri otherDestination = preparedCopy("other-prepared.cia", new byte[]{9, 8});
-        assertTrue(store.markPrepared(id, destination));
-        assertTrue(store.markPrepared(otherId, otherDestination));
+        assertTrue(markVerified(id, destination));
+        assertTrue(markVerified(otherId, otherDestination));
 
         new DownloadStore(context).deletePreparedOriginal(id);
 
@@ -286,9 +286,44 @@ public class DownloadStoreIntegrationTest {
         assertArrayEquals(preparedBytes, Files.readAllBytes(documents.files.get(destination).toPath()));
         assertTrue(documents.deleted.isEmpty());
         List<DownloadStore.Entry> restored = new DownloadStore(context).list();
-        assertEquals(1, restored.size());
+        assertEquals(2, restored.size());
         assertEquals(otherId, restored.get(0).id);
         assertTrue(restored.get(0).isPrepared());
+        assertTrue(entry(id).originalDeleted);
+        assertTrue(entry(id).isComplete());
+        assertTrue(entry(id).isPrepared());
+        assertEquals(destination, store.preparedUri(id));
+        assertTrue(entry(id).completionStatus.contains("Original download removed"));
+    }
+
+    @Test public void legacyPreparedMarkerCannotAuthorizeAutomaticSourceDeletion() throws Exception {
+        long id = complete("Legacy.cia");
+        Uri legacy = preparedCopy("legacy.3ds", new byte[]{1});
+        assertTrue(store.markPrepared(id, legacy));
+        assertThrows(IllegalStateException.class, () -> store.deletePreparedOriginal(id));
+        assertNotNull(queue.getRequest(id));
+        DownloadCompletion.processPending(context);
+        assertFalse(entry(id).isPrepared());
+        assertFalse(entry(id).completionAttempted);
+        assertNotNull(queue.getRequest(id));
+        assertArrayEquals(new byte[]{1}, Files.readAllBytes(documents.files.get(legacy).toPath()));
+    }
+
+    @Test public void corruptedVerifiedCopyCannotAuthorizeSourceDeletion() throws Exception {
+        long id = complete("Verified.cia");
+        Uri copy = preparedCopy("verified.3ds", new byte[]{1, 2, 3});
+        assertTrue(markVerified(id, copy));
+        Files.write(documents.files.get(copy).toPath(), new byte[]{1, 2, 4});
+        assertThrows(IllegalStateException.class, () -> store.deletePreparedOriginal(id));
+        assertNotNull(queue.getRequest(id));
+        assertTrue(store.resetInvalidPreparedCopy(id));
+        assertFalse(entry(id).isPrepared());
+    }
+
+    private boolean markVerified(long id, Uri destination) throws Exception {
+        byte[] content = Files.readAllBytes(documents.files.get(destination).toPath());
+        String digest = DownloadStore.hex(java.security.MessageDigest.getInstance("SHA-256").digest(content));
+        return store.markPrepared(id, destination, false, content.length, digest);
     }
 
     private DownloadStore.Entry entry(long id) {

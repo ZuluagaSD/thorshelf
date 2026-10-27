@@ -306,7 +306,19 @@ public final class ExportService extends Service {
         if (!cleaned) {
             message += " Remove the partial destination file manually. The original download is safe.";
         }
-        releaseDocumentGrant(this, job.destination);
+        boolean dsSaved = false;
+        if (success && job.nds) {
+            try {
+                dsSaved = new DownloadStore(this).markDsSaved(job.downloadId, job.destination);
+            } catch (RuntimeException ignored) {
+                // The document is complete even when its launch metadata cannot be saved.
+            }
+            if (!dsSaved) {
+                message = "Export complete: " + job.name
+                        + ". ThorShelf could not remember this copy; open the saved file from melonDS.";
+            }
+        }
+        releaseDocumentGrant(this, job.destination, dsSaved);
         synchronized (STATE_LOCK) {
             if (job.token.equals(activeToken)) {
                 preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
@@ -426,12 +438,16 @@ public final class ExportService extends Service {
     }
 
     private static void releaseDocumentGrant(Context context, Uri uri) {
+        releaseDocumentGrant(context, uri, false);
+    }
+
+    private static void releaseDocumentGrant(Context context, Uri uri, boolean keepRead) {
         if (uri == null) return;
         try {
             ContentResolver resolver = context.getContentResolver();
             for (UriPermission permission : resolver.getPersistedUriPermissions()) {
                 if (!uri.equals(permission.getUri())) continue;
-                int flags = (permission.isReadPermission() ? Intent.FLAG_GRANT_READ_URI_PERMISSION : 0)
+                int flags = (permission.isReadPermission() && !keepRead ? Intent.FLAG_GRANT_READ_URI_PERMISSION : 0)
                         | (permission.isWritePermission() ? Intent.FLAG_GRANT_WRITE_URI_PERMISSION : 0);
                 if (flags != 0) resolver.releasePersistableUriPermission(uri, flags);
                 break;

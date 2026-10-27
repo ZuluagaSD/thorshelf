@@ -55,9 +55,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public final class MainActivity extends Activity implements DisplayManager.DisplayListener {
-    private static final int SELECT_PREPARATION_FOLDER = 43;
     private static final int CHANGE_PREPARATION_FOLDER = 44;
     private static final int SAVE_NDS_DOCUMENT = 45;
+    private static final int CHANGE_NDS_FOLDER = 46;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService downloadQueries = Executors.newSingleThreadExecutor();
     private final ExecutorService artworkMetadataQueries = Executors.newSingleThreadExecutor();
@@ -88,7 +88,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private TextView downloadBadge, wifiStatus;
     private BrowseHomeView browseHome;
     private ScrollView ndsHome;
-    private Button threeDsButton, ndsButton, languageButton, regionButton;
+    private Button threeDsButton, ndsButton, languageButton, regionButton, emulatorButton;
     private AlertDialog filterDialog;
     private String catalogLanguage = "";
     private String catalogRegion = "";
@@ -105,14 +105,13 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private String queueSummary = "No downloads yet";
     private String renderedRows = "";
     private int tab = 0;
-    private long exportId = -1;
-    private String exportName = "";
+    private long folderDownloadId = -1;
     private long ndsExportId = -1;
     private String ndsExportName = "";
-    private boolean deletingOriginal;
-    private boolean checkingPreparationFolder;
     private TextView gamesFolderStatus;
     private Button changeGamesFolder;
+    private TextView dsGamesFolderStatus;
+    private Button changeDsGamesFolder;
     private boolean resumed;
     private boolean queryingDownloads;
     private final Runnable refresh = new Runnable() {
@@ -133,8 +132,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         displays = getSystemService(DisplayManager.class);
         if (state != null) {
             sourcePage = state.getString("sourcePage", DownloadPolicy.HOME);
-            exportId = state.getLong("exportId", -1);
-            exportName = state.getString("exportName", "");
+            folderDownloadId = state.getLong("folderDownloadId", -1);
             ndsExportId = state.getLong("ndsExportId", -1);
             ndsExportName = state.getString("ndsExportName", "");
             ndsMode = state.getBoolean("ndsMode", ndsMode);
@@ -158,7 +156,6 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         else setShelfVisible(true);
         if (state != null) search.setText(state.getString("searchText", ""));
         showTab(state == null ? 0 : state.getInt("tab", 0));
-        if (state != null && state.getBoolean("checkingPreparationFolder", false)) continueCopy();
     }
 
     private boolean wideLayout() {
@@ -214,7 +211,11 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             heading.addView(tabs, tp);
         }
         heading.addView(downloadBadge);
-        heading.addView(Ui.button(this, "Azahar ↗", this::azaharHelp));
+        emulatorButton = Ui.button(this, "Azahar ↗", () -> {
+            if (ndsMode) melonDsHelp();
+            else azaharHelp();
+        });
+        heading.addView(emulatorButton);
         root.addView(heading);
         if (!wideLayout()) {
             LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-1, -2);
@@ -308,7 +309,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         dsCard.addView(Ui.heading(this, "A new shelf for Nintendo DS."));
         dsCard.addView(Ui.text(this, "Explore Nintendo DS games across regions. Use Language and Region to find your edition.", 16, Ui.MUTED));
         dsCard.addView(Ui.primaryButton(this, "Browse DS games", () -> loadCatalog(NdsCatalog.HOME)));
-        dsCard.addView(Ui.text(this, "Download a title, then choose Save DS game to copy its .nds file into your DS emulator’s games folder.", 15, Ui.TEXT));
+        dsCard.addView(Ui.text(this, "Choose your DS games folder in Settings. Download a title, choose Save DS game, then Open in melonDS to play.", 15, Ui.TEXT));
         dsBody.addView(dsCard);
         ndsHome.addView(dsBody);
         browsePanel.addView(ndsHome, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -345,6 +346,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     }
 
     private void updatePlatformUi() {
+        emulatorButton.setText(ndsMode ? "melonDS ↗" : "Azahar ↗");
         threeDsButton.setSelected(!ndsMode);
         ndsButton.setSelected(ndsMode);
         search.setHint(ndsMode ? "Search DS games" : "Search 3DS games");
@@ -518,19 +520,41 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         LinearLayout games = settingsCard(body, "Ready for Azahar");
         gamesFolderStatus = Ui.text(this, "", 15, Ui.TEXT);
         games.addView(gamesFolderStatus);
-        changeGamesFolder = Ui.button(this, "Choose games folder", () -> openGamesFolderPicker(CHANGE_PREPARATION_FOLDER));
+        changeGamesFolder = Ui.button(this, "Choose games folder", () -> {
+            folderDownloadId = -1;
+            openGamesFolderPicker(CHANGE_PREPARATION_FOLDER);
+        });
         games.addView(changeGamesFolder);
-        games.addView(Ui.text(this, "Preparations use this folder automatically. Changing it applies to future preparations; existing files stay where they are.", 14, Ui.MUTED));
+        games.addView(Ui.text(this, "Completed 3DS downloads are saved here automatically. Changing it applies to future downloads; existing games stay where they are.", 14, Ui.MUTED));
         updateGamesFolder();
-        games.addView(Ui.text(this, "1. Search for a game and choose Download on its card.\n2. Choose Prepare for Azahar. Select your games folder the first time.\n3. Add that folder in Azahar, then refresh its game list.", 15, Ui.TEXT));
-        games.addView(Ui.text(this, "Your original download stays safe. Preparation needs temporary internal storage of about five times the download size, plus space for the prepared copy. Updates and DLC still need Install CIA in Azahar and their matching game.", 14, Ui.MUTED));
+        games.addView(Ui.text(this, "1. Choose your games folder once.\n2. Download a game. ThorShelf prepares it only when needed, saves it to your folder, and removes the original download.\n3. Add that folder in Azahar, then refresh its game list.", 15, Ui.TEXT));
+        games.addView(Ui.text(this, "The original is removed only after the saved game is verified. If saving fails or is cancelled, the original stays available to retry. Preparation may need temporary internal storage of about five times the download size. Updates and DLC still need Install CIA in Azahar and their matching game.", 14, Ui.MUTED));
         games.addView(Ui.primaryButton(this, "Open Azahar", this::launchAzahar));
         LinearLayout dsGames = settingsCard(body, "Nintendo DS games");
-        dsGames.addView(Ui.text(this, "Choose DS under Search in to explore the catalog. Use Language and Region, then Choose edition when a game has multiple releases. Demos, prototypes, and known bad dumps are excluded. Completed downloads offer Save DS game: choose a new .nds file in your DS games folder, then open it in your DS emulator.", 15, Ui.TEXT));
-        dsGames.addView(Ui.text(this, "DS games do not need CIA preparation. ZIPs must contain exactly one .nds file; games requiring extra data files may need manual setup. 7z archives and DSiWare are not supported by this DS workflow.", 14, Ui.MUTED));
-        dsGames.addView(Ui.button(this, "DS catalog: DSiDrop", () -> openExternal("https://github.com/0x1a4-dev/DSiDrop")));
-        dsGames.addView(Ui.button(this, "DS cover art: libretro", () -> openExternal("https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_DS")));
-        dsGames.addView(Ui.button(this, "DS language metadata: GameTDB", () -> openExternal("https://www.gametdb.com/DS/Downloads")));
+        dsGames.addView(Ui.text(this, "Choose a folder once. Save DS game on a completed download will save its .nds file here, ready to open in melonDS.", 15, Ui.TEXT));
+        TextView dsFolderLabel = Ui.text(this, "Games folder", 12, Ui.MUTED);
+        dsFolderLabel.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 2));
+        dsGames.addView(dsFolderLabel);
+        dsGamesFolderStatus = Ui.text(this, "", 15, Ui.TEXT);
+        dsGames.addView(dsGamesFolderStatus);
+        LinearLayout dsActions = wideLayout() ? Ui.row(this) : Ui.column(this);
+        changeDsGamesFolder = Ui.settingsButton(this, "Choose games folder", () -> {
+            openGamesFolderPicker(CHANGE_NDS_FOLDER);
+        }, false);
+        Button openMelonDs = Ui.settingsButton(this, "Open melonDS", this::launchMelonDs, true);
+        LinearLayout.LayoutParams chooseDsParams = new LinearLayout.LayoutParams(
+                wideLayout() ? Ui.dp(this, 200) : -1, -2);
+        LinearLayout.LayoutParams openDsParams = new LinearLayout.LayoutParams(
+                wideLayout() ? Ui.dp(this, 200) : -1, -2);
+        if (wideLayout()) openDsParams.setMarginStart(Ui.dp(this, 12));
+        else openDsParams.topMargin = Ui.dp(this, 10);
+        dsActions.addView(changeDsGamesFolder, chooseDsParams);
+        dsActions.addView(openMelonDs, openDsParams);
+        LinearLayout.LayoutParams dsActionsParams = new LinearLayout.LayoutParams(-1, -2);
+        dsActionsParams.setMargins(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
+        dsGames.addView(dsActions, dsActionsParams);
+        dsGames.addView(Ui.text(this, "Add this folder to melonDS’s library too. Supports .nds files and ZIPs containing one DS game.", 14, Ui.MUTED));
+        updateDsGamesFolder();
         LinearLayout controls = settingsCard(body, "Made for your handheld");
         controls.addView(Ui.text(this, "D-pad: move focus · A: select · B: back\nL / R: switch tabs · Y: search\nUse touch if hShop asks for verification.", 15, Ui.TEXT));
         LinearLayout help = settingsCard(body, "A little help");
@@ -539,7 +563,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                 ? "https://github.com/0x1a4-dev/DSiDrop" : CatalogFilters.sourceUrl(sourcePage))));
         help.addView(Ui.button(this, "Open-source licenses", this::showLicenses));
         help.addView(Ui.button(this, "3DS cover art: GameTDB", () -> openExternal("https://www.gametdb.com/")));
-        body.addView(Ui.text(this, "ThorShelf 0.5.0 · Unofficial companion\nCatalogs: hShop and DSiDrop. DS cover art: libretro. Not affiliated with these services, Nintendo, AYN, or Azahar. Shelf illustrations are bundled editorial artwork.", 12, Ui.MUTED));
+        body.addView(Ui.text(this, "ThorShelf 0.5.0 · Unofficial companion\nCatalogs: hShop and DSiDrop. DS cover art: libretro. DS language metadata: GameTDB. Not affiliated with these services, Nintendo, AYN, or Azahar. Shelf illustrations are bundled editorial artwork.", 12, Ui.MUTED));
     }
 
     private LinearLayout settingsCard(LinearLayout parent, String title) {
@@ -843,6 +867,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         queryingDownloads = true;
         downloadQueries.execute(() -> {
             try {
+                DownloadCompletion.processPending(getApplicationContext());
                 List<DownloadStore.Entry> entries = downloads.list();
                 handler.post(() -> {
                     queryingDownloads = false;
@@ -947,10 +972,10 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         final FrameLayout artwork;
         final TextView status;
         final ProgressBar progress;
-        final Button prepare;
-        final Button deleteOriginal;
+        final Button completionAction;
+        String completionActionKind = "";
+        final Button openDs;
         String artworkUrl;
-        boolean cancellingPreparation;
         DownloadCard(DownloadStore.Entry entry) {
             root = Ui.card(MainActivity.this); Ui.pad(root, 14);
             LinearLayout details = Ui.row(MainActivity.this);
@@ -999,32 +1024,46 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                                 }).show()));
             }
             if (entry.isComplete() && entry.name.toLowerCase(Locale.ROOT).endsWith(".cia")) {
-                prepare = Ui.primaryButton(MainActivity.this, "Prepare for Azahar", () -> {
-                    if (cancellingPreparation) {
-                        if (PreparationService.isRunning(MainActivity.this)
-                                && PreparationService.downloadId(MainActivity.this) == entry.id) {
-                            PreparationService.cancel(MainActivity.this);
-                        }
-                        refreshDownloads();
-                    } else {
-                        prepareCopy(entry);
+                completionAction = Ui.primaryButton(MainActivity.this, "Choose games folder", () -> {
+                    switch (completionActionKind) {
+                        case "cancel":
+                            if (PreparationService.isRunning(MainActivity.this)
+                                    && PreparationService.downloadId(MainActivity.this) == entry.id) {
+                                PreparationService.cancel(MainActivity.this);
+                            }
+                            refreshDownloads();
+                            break;
+                        case "folder":
+                            folderDownloadId = entry.id;
+                            openGamesFolderPicker(CHANGE_PREPARATION_FOLDER);
+                            break;
+                        case "retry":
+                            resumeSaving(entry.id, false);
+                            break;
+                        case "open":
+                            launchAzahar();
+                            break;
+                        default:
+                            break;
                     }
                 });
-                root.addView(prepare);
-                deleteOriginal = Ui.button(MainActivity.this, "Delete original", () -> confirmDeleteOriginal(entry));
-                deleteOriginal.setVisibility(View.GONE);
-                root.addView(deleteOriginal);
+                root.addView(completionAction);
             } else {
-                prepare = null;
-                deleteOriginal = null;
+                completionAction = null;
             }
             String lowerName = entry.name.toLowerCase(Locale.ROOT);
             if (entry.isComplete() && (lowerName.endsWith(".nds")
-                    || (NdsCatalog.isDetailUrl(entry.sourcePage) && lowerName.endsWith(".zip")))) {
+                    || ((NdsCatalog.HOME.equals(entry.sourcePage) || NdsCatalog.isDetailUrl(entry.sourcePage))
+                    && lowerName.endsWith(".zip")))) {
                 root.addView(Ui.primaryButton(MainActivity.this, "Save DS game", () -> saveNdsGame(entry)));
+                openDs = Ui.primaryButton(MainActivity.this, "Open in melonDS", () -> openDsGame(entry));
+                openDs.setVisibility(View.GONE);
+                root.addView(openDs);
                 root.addView(Ui.text(MainActivity.this, lowerName.endsWith(".zip")
-                        ? "Extract the single .nds file to your DS games folder. Extra data files need manual setup."
-                        : "Copy this .nds file to your DS games folder, then open it in your DS emulator.", 13, Ui.MUTED));
+                        ? "Save the .nds file to your DS games folder, then open it in melonDS. Extra data files need manual setup."
+                        : "Save this .nds file to your DS games folder, then open it in melonDS.", 13, Ui.MUTED));
+            } else {
+                openDs = null;
             }
         }
         void updateArtwork(String title, String url) {
@@ -1036,6 +1075,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         }
         void update(DownloadStore.Entry entry) {
             updateArtwork(entry.displayName, entry.artworkUrl);
+            if (openDs != null) openDs.setVisibility(entry.savedDsDestination == null ? View.GONE : View.VISIBLE);
             String size = Formatter.formatFileSize(MainActivity.this, entry.downloaded);
             if (entry.total > 0) size += " / " + Formatter.formatFileSize(MainActivity.this, entry.total);
             status.setText(entry.statusLabel + " · " + size);
@@ -1043,30 +1083,83 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             progress.setVisibility(entry.isActive() ? View.VISIBLE : View.GONE);
             progress.setIndeterminate(entry.total <= 0);
             if (entry.total > 0) progress.setProgress((int) Math.min(1000, entry.downloaded * 1000.0 / entry.total));
-            if (deleteOriginal != null) {
-                boolean preparing = PreparationService.isRunning(MainActivity.this);
-                boolean currentPreparation = PreparationService.downloadId(MainActivity.this) == entry.id;
-                cancellingPreparation = preparing && currentPreparation;
-                prepare.setText(cancellingPreparation ? "Cancel preparation" : "Prepare for Azahar");
-                prepare.setEnabled(!deletingOriginal && (!preparing || currentPreparation));
-                deleteOriginal.setVisibility(entry.isPrepared() ? View.VISIBLE : View.GONE);
-                deleteOriginal.setEnabled(!deletingOriginal && !preparing);
-                if (currentPreparation) {
-                    String message = PreparationService.status(MainActivity.this);
-                    if (preparing) {
-                        int percent = PreparationService.progress(MainActivity.this);
-                        status.setText(message);
-                        status.setTextColor(Ui.ACCENT);
-                        progress.setVisibility(View.VISIBLE);
-                        progress.setIndeterminate(false);
-                        progress.setProgress(percent * 10);
-                    } else if (!message.isEmpty()) {
-                        status.append("\n" + message);
-                        status.setTextColor(PreparationService.isReady(MainActivity.this) ? Ui.SUCCESS : Ui.AMBER);
-                    }
+            if (completionAction != null) {
+                boolean running = PreparationService.isRunning(MainActivity.this);
+                boolean current = PreparationService.downloadId(MainActivity.this) == entry.id;
+                Uri folder = PreparationFolder.saved(preferences);
+                boolean folderAvailable = PreparationFolder.hasPersistedAccess(MainActivity.this, folder);
+                completionActionKind = "";
+                completionAction.setVisibility(View.VISIBLE);
+                completionAction.setEnabled(true);
+                if (running && current) {
+                    completionActionKind = "cancel";
+                    completionAction.setText("Cancel saving");
+                    status.setText(PreparationService.status(MainActivity.this));
+                    status.setTextColor(Ui.ACCENT);
+                    progress.setVisibility(View.VISIBLE);
+                    progress.setIndeterminate(false);
+                    progress.setProgress(PreparationService.progress(MainActivity.this) * 10);
+                } else if (entry.originalDeleted && entry.isPrepared()) {
+                    completionActionKind = "open";
+                    completionAction.setText("Open Azahar");
+                    status.setText(entry.completionStatus.isEmpty()
+                            ? "Saved to your games folder · Original removed" : entry.completionStatus);
+                    status.setTextColor(Ui.SUCCESS);
+                } else if (!folderAvailable || DownloadCompletion.needsFolder(entry)) {
+                    completionActionKind = "folder";
+                    completionAction.setText("Choose games folder");
+                    status.setText(folder == null ? "Choose a games folder to finish saving this download."
+                            : "Your games folder is unavailable. Choose it again to finish saving.");
+                    status.setTextColor(Ui.AMBER);
+                } else if (entry.completionAttempted) {
+                    completionActionKind = "retry";
+                    completionAction.setText("Retry saving");
+                    completionAction.setEnabled(!running);
+                    status.setText(entry.completionStatus.isEmpty()
+                            ? "Saving was interrupted. The original download is safe." : entry.completionStatus);
+                    status.setTextColor(Ui.AMBER);
+                } else {
+                    completionAction.setVisibility(View.GONE);
+                    status.setText("Waiting to save to your games folder");
+                    status.setTextColor(Ui.MUTED);
                 }
             }
         }
+    }
+
+    private void resumeSaving(long downloadId, boolean folderChanged) {
+        downloadQueries.execute(() -> {
+            String failure = null;
+            try {
+                if (folderChanged) DownloadCompletion.folderChanged(getApplicationContext());
+                if (downloadId >= 0) DownloadCompletion.retry(getApplicationContext(), downloadId);
+            } catch (RuntimeException error) {
+                failure = "Could not resume saving. Check available storage and try again.";
+            }
+            String message = failure;
+            handler.post(() -> {
+                if (isDestroyed()) return;
+                if (message != null) toast(message);
+                refreshDownloads();
+            });
+        });
+    }
+
+    private void openDsGame(DownloadStore.Entry entry) {
+        downloadQueries.execute(() -> {
+            Uri rom = downloads.savedDsUri(entry.id);
+            handler.post(() -> {
+                if (isDestroyed()) return;
+                if (rom == null) {
+                    new AlertDialog.Builder(this).setTitle("Saved DS game unavailable")
+                            .setMessage("The saved game was moved, deleted, or its access expired. Choose Save DS game again, or open the file from melonDS’s library.")
+                            .setNegativeButton("Close", null)
+                            .setPositiveButton("Save DS game", (d, w) -> saveNdsGame(entry)).show();
+                } else if (!MelonDsLauncher.open(this, rom)) {
+                    melonDsUnavailable();
+                }
+            });
+        });
     }
 
     private void saveNdsGame(DownloadStore.Entry entry) {
@@ -1084,6 +1177,35 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
 
     private void openNdsSavePicker() {
         if (ndsExportId < 0) return;
+        Uri folder = NdsGamesFolder.saved(preferences);
+        if (folder != null) {
+            if (!PreparationFolder.hasPersistedAccess(this, folder)) {
+                toast("Choose your DS games folder again to restore access.");
+                openGamesFolderPicker(CHANGE_NDS_FOLDER);
+                return;
+            }
+            long downloadId = ndsExportId;
+            String name = ndsExportName;
+            ndsExportId = -1;
+            android.content.Context app = getApplicationContext();
+            // Folder providers may be remote. Keep creation off the UI thread and let
+            // this handoff survive activity recreation, just like the export service.
+            new Thread(() -> {
+                String failure = null;
+                try { NdsGamesFolder.startExport(app, downloadId, folder, name); }
+                catch (IOException | RuntimeException error) {
+                    failure = "Could not save to your DS games folder. Check its space and access, or choose another folder in Settings.";
+                }
+                String message = failure;
+                handler.post(() -> {
+                    if (isDestroyed()) return;
+                    if (message != null) toast(message);
+                    refreshDownloads();
+                });
+            }, "thorshelf-save-ds-folder").start();
+            showTab(1);
+            return;
+        }
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
                 .setType("application/octet-stream").putExtra(Intent.EXTRA_TITLE, ndsExportName)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -1095,126 +1217,60 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         }
     }
 
-    private void confirmDeleteOriginal(DownloadStore.Entry entry) {
-        new AlertDialog.Builder(this).setTitle("Delete original download?")
-                .setMessage("Delete the original download of “" + GameArtwork.displayTitle(entry.displayName)
-                        + "” and remove it from this list? Your prepared Azahar copy will stay in your games folder.")
-                .setNegativeButton("Keep original", null)
-                .setPositiveButton("Delete original", (dialog, which) -> {
-                    if (deletingOriginal) return;
-                    deletingOriginal = true;
-                    renderDownloads(latestEntries);
-                    downloadQueries.execute(() -> {
-                        String error = null;
-                        try { PreparationService.deleteOriginal(getApplicationContext(), entry.id); }
-                        catch (RuntimeException e) {
-                            error = e.getMessage() == null ? "Could not delete the original download. Try again." : e.getMessage();
-                        }
-                        String result = error;
-                        handler.post(() -> {
-                            deletingOriginal = false;
-                            if (isDestroyed()) return;
-                            if (result == null) {
-                                catalogResults.setDownloadState(entry.sourcePage, "Download", false);
-                                toast("Original deleted. Your prepared copy is still in your games folder.");
-                            } else toast(result);
-                            refreshDownloads();
-                        });
-                    });
-                }).show();
-    }
-    private void prepareCopy(DownloadStore.Entry entry) {
-        if (deletingOriginal) {
-            toast("Wait for the original download to finish deleting.");
-            return;
-        }
-        if (checkingPreparationFolder) {
-            toast("Checking your games folder…");
-            return;
-        }
-        if (PreparationService.isRunning(this)) {
-            toast("A file is already being prepared. Wait for it to finish or cancel it first.");
-            return;
-        }
-        if (PreparationFolder.saved(preferences) != null) {
-            exportId = entry.id;
-            exportName = entry.displayName;
-            requestCopyAction();
-            return;
-        }
-        new AlertDialog.Builder(this).setTitle("Prepare for Azahar")
-                .setMessage("Prepare “" + entry.displayName + "” on this device. Your original stays in Downloads.\n\nChoose your games folder once, such as ROMs/n3ds. Future preparations use it automatically; change it in Settings. Base games become playable .3ds files. Add the same folder as Azahar’s Games Folder once, then refresh its game list. Updates and DLC remain CIA files and require “Install CIA” in Azahar.\n\nPreparation needs temporary internal storage of about five times the download’s size, plus room for your saved copy.")
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Choose games folder", (dialog, which) -> {
-                    exportId = entry.id;
-                    exportName = entry.displayName;
-                    requestCopyAction();
-                }).show();
-    }
-    private void requestCopyAction() {
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 42);
-            return;
-        }
-        continueCopy();
-    }
-    private void continueCopy() {
-        if (exportId < 0 || checkingPreparationFolder) return;
-        Uri folder = PreparationFolder.saved(preferences);
-        if (folder == null) {
-            openCopyPicker();
-            return;
-        }
-        checkingPreparationFolder = true;
-        long id = exportId;
-        String name = exportName;
-        downloadQueries.execute(() -> {
-            boolean available = PreparationFolder.canWrite(getApplicationContext(), folder);
-            handler.post(() -> {
-                checkingPreparationFolder = false;
-                if (isDestroyed() || exportId != id) return;
-                if (!available) {
-                    toast("Your saved games folder is unavailable. Choose it again or select another folder.");
-                    openCopyPicker();
-                    return;
-                }
-                startPreparation(id, folder, name);
-            });
-        });
-    }
-    private void startPreparation(long id, Uri folder, String name) {
-        try { PreparationService.start(this, id, folder, name); }
-        catch (RuntimeException e) {
-            toast(e.getMessage() == null ? "Could not start preparation. Try again from Downloads." : e.getMessage());
-        } finally {
-            exportId = -1;
-        }
-        showTab(1);
-    }
-    private void openCopyPicker() {
-        openGamesFolderPicker(SELECT_PREPARATION_FOLDER);
-    }
     private void openGamesFolderPicker(int request) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
                 .addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                         | Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        Uri previous = PreparationFolder.saved(preferences);
+        Uri previous = request == CHANGE_NDS_FOLDER
+                ? NdsGamesFolder.saved(preferences) : PreparationFolder.saved(preferences);
         if (previous != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, previous);
         try { startActivityForResult(intent, request); }
-        catch (ActivityNotFoundException e) { toast("No file picker is available on this device."); }
+        catch (ActivityNotFoundException e) {
+            if (request == CHANGE_NDS_FOLDER) ndsExportId = -1;
+            toast("No file picker is available on this device.");
+        }
     }
     private void updateGamesFolder() {
         Uri folder = PreparationFolder.saved(preferences);
         gamesFolderStatus.setText(PreparationFolder.label(folder));
         changeGamesFolder.setText(folder == null ? "Choose games folder" : "Change games folder");
     }
+    private void updateDsGamesFolder() {
+        Uri folder = NdsGamesFolder.saved(preferences);
+        boolean lostAccess = folder != null && !PreparationFolder.hasPersistedAccess(this, folder);
+        dsGamesFolderStatus.setText(PreparationFolder.label(folder)
+                + (lostAccess ? " · Choose this folder again to restore access." : ""));
+        dsGamesFolderStatus.setTextColor(lostAccess ? Ui.AMBER : Ui.TEXT);
+        changeDsGamesFolder.setText(folder == null ? "Choose games folder" : "Change games folder");
+    }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(request, permissions, results);
-        if (request == 42 && exportId >= 0) continueCopy();
         if (request == SAVE_NDS_DOCUMENT && ndsExportId >= 0) openNdsSavePicker();
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (request == CHANGE_NDS_FOLDER) {
+            if (result != RESULT_OK || data == null || data.getData() == null) {
+                ndsExportId = -1;
+                return;
+            }
+            Uri folder = data.getData();
+            if (!PreparationFolder.isFolder(folder)) {
+                ndsExportId = -1;
+                toast("Choose a DS games folder.");
+                return;
+            }
+            PreparationFolder.retainAccess(this, data);
+            if (!PreparationFolder.hasPersistedAccess(this, folder)) {
+                ndsExportId = -1;
+                toast("This folder’s access could not be saved. Choose another DS games folder.");
+                return;
+            }
+            preferences.edit().putString(NdsGamesFolder.PREFERENCE, folder.toString()).apply();
+            updateDsGamesFolder();
+            if (ndsExportId >= 0) openNdsSavePicker();
+            return;
+        }
         if (request == SAVE_NDS_DOCUMENT) {
             if (result != RESULT_OK || data == null || data.getData() == null || ndsExportId < 0) {
                 ndsExportId = -1;
@@ -1240,6 +1296,8 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             return;
         }
         if (request == CHANGE_PREPARATION_FOLDER) {
+            long selectedDownloadId = folderDownloadId;
+            folderDownloadId = -1;
             if (result != RESULT_OK || data == null || data.getData() == null) return;
             Uri folder = data.getData();
             if (!PreparationFolder.isFolder(folder)) {
@@ -1253,29 +1311,9 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             }
             preferences.edit().putString(PreparationFolder.PREFERENCE, folder.toString()).apply();
             updateGamesFolder();
+            resumeSaving(selectedDownloadId, true);
             return;
         }
-        if (request != SELECT_PREPARATION_FOLDER) return;
-        if (result != RESULT_OK || data == null || data.getData() == null || exportId < 0) {
-            exportId = -1; return;
-        }
-        Uri destination = data.getData();
-        if (!PreparationFolder.isFolder(destination)) {
-            toast("Choose a games folder.");
-            exportId = -1;
-            return;
-        }
-        PreparationFolder.retainAccess(this, data);
-        try {
-            preferences.edit().putString(PreparationFolder.PREFERENCE, destination.toString()).apply();
-            updateGamesFolder();
-            PreparationService.start(this, exportId, destination, exportName);
-        } catch (RuntimeException e) {
-            toast(e.getMessage() == null ? "Could not start preparation. Try again from Downloads." : e.getMessage());
-        } finally {
-            exportId = -1;
-        }
-        showTab(1);
     }
 
     private void showTab(int next) {
@@ -1285,12 +1323,30 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         settingsPanel.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
         for (int i = 0; i < tabButtons.size(); i++) tabButtons.get(i).setSelected(i == tab);
         if (tab == 1) refreshDownloads();
-        if (tab == 2) updateGamesFolder();
+        if (tab == 2) {
+            updateGamesFolder();
+            updateDsGamesFolder();
+        }
         updateCompanion();
+    }
+    private void melonDsHelp() {
+        new AlertDialog.Builder(this).setTitle("Open in melonDS")
+                .setMessage("Choose your DS games folder in Settings, then use Save DS game on a completed download. Open in melonDS plays the saved file. Add the same folder to melonDS’s library and complete its first-time setup if prompted.")
+                .setNegativeButton("Close", null)
+                .setPositiveButton("Open melonDS", (d, w) -> launchMelonDs()).show();
+    }
+    private void launchMelonDs() {
+        if (!MelonDsLauncher.open(this, null)) melonDsUnavailable();
+    }
+    private void melonDsUnavailable() {
+        new AlertDialog.Builder(this).setTitle("melonDS is unavailable")
+                .setMessage("Install or enable melonDS for Android, then try again. Custom builds can be opened from your launcher.")
+                .setNegativeButton("Close", null)
+                .setPositiveButton("Get melonDS", (d, w) -> openExternal(MelonDsLauncher.WEBSITE)).show();
     }
     private void azaharHelp() {
         new AlertDialog.Builder(this).setTitle("Open in Azahar")
-                .setMessage("Prepare your downloaded game into a folder such as ROMs/n3ds. Set that same folder as Azahar’s Games Folder once, then refresh its game list.\n\nUpdates and DLC remain CIA files. Choose “Install CIA” inside Azahar and select the prepared file; they need their matching game.")
+                .setMessage("Choose a games folder such as ROMs/n3ds. Downloads are prepared when needed and saved there automatically. Set that same folder as Azahar’s Games Folder once, then refresh its game list.\n\nUpdates and DLC remain CIA files. Choose “Install CIA” inside Azahar and select the prepared file; they need their matching game.")
                 .setNegativeButton("Close", null).setPositiveButton("Open Azahar", (d, w) -> launchAzahar()).show();
     }
     private void launchAzahar() {
@@ -1418,12 +1474,11 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         out.putString("searchText", search.getText().toString());
         out.putInt("tab", tab); out.putString("sourcePage", sourcePage);
         out.putBoolean("showingShelf", showingShelf);
-        out.putLong("exportId", exportId); out.putString("exportName", exportName);
+        out.putLong("folderDownloadId", folderDownloadId);
         out.putLong("ndsExportId", ndsExportId); out.putString("ndsExportName", ndsExportName);
         out.putBoolean("ndsMode", ndsMode);
         out.putString("catalogLanguage", catalogLanguage);
         out.putString("catalogRegion", catalogRegion);
-        out.putBoolean("checkingPreparationFolder", checkingPreparationFolder);
     }
     @Override protected void onDestroy() {
         catalogGeneration++; downloadGeneration++;

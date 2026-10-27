@@ -15,6 +15,8 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /** Tracks Android-managed downloads without keeping their temporary download URLs. */
 public final class DownloadStore {
@@ -107,7 +110,7 @@ public final class DownloadStore {
             } catch (RuntimeException ignored) {
                 throw new IllegalStateException("Android could not start the download. Check available storage and the download service.");
             }
-            records.add(new TrackedDownload(id, name, page, null, artworkUrl));
+            records.add(new TrackedDownload(id, name, page, null, null, artworkUrl));
             if (!writeRecords(records)) {
                 try {
                     manager.remove(id);
@@ -166,7 +169,10 @@ public final class DownloadStore {
             for (int i = records.size() - 1; i >= 0; i--) {
                 TrackedDownload record = records.get(i);
                 Entry entry = entries.get(record.id);
-                if (entry == null) {
+                if (record.originalDeleted || (entry == null && queried && record.preparedDestination != null)) {
+                    entry = new Entry(record, record.preparedSize, record.preparedSize,
+                            DownloadManager.STATUS_SUCCESSFUL, 0, "Saved to games folder");
+                } else if (entry == null) {
                     entry = queried
                             ? new Entry(record, 0, -1, DownloadManager.STATUS_FAILED, DownloadManager.ERROR_UNKNOWN,
                             "Removed from Android downloads. Reopen its catalog page for a fresh link.")
@@ -213,8 +219,7 @@ public final class DownloadStore {
                 TrackedDownload record = records.get(i);
                 if (record.id != id) continue;
                 if (!record.artworkUrl.isEmpty()) return record.artworkUrl.equals(artworkUrl);
-                records.set(i, new TrackedDownload(record.id, record.name, record.sourcePage,
-                        record.preparedDestination, artworkUrl));
+                records.set(i, new TrackedDownload(record, record.preparedDestination, record.savedDsDestination, artworkUrl));
                 if (writeRecords(records)) return true;
                 records.set(i, record);
                 writeRecords(records);
@@ -226,6 +231,10 @@ public final class DownloadStore {
 
     /** Records a separate copy only after preparation has fully saved and closed it. */
     public boolean markPrepared(long id, Uri destination) {
+        return markPrepared(id, destination, true, -1, "");
+    }
+
+    boolean markPrepared(long id, Uri destination, boolean requiresInstall, long size, String digest) {
         Uri prepared = preparedUri(destination == null ? null : destination.toString());
         if (prepared == null) return false;
         synchronized (LOCK) {
@@ -235,8 +244,11 @@ public final class DownloadStore {
                 if (record.id != id) continue;
                 Uri original = successfulDownloadUri(id);
                 if (original == null || original.equals(prepared)) return false;
-                records.set(i, new TrackedDownload(record.id, record.name, record.sourcePage,
-                        prepared, record.artworkUrl));
+                TrackedDownload updated = new TrackedDownload(record, prepared, record.savedDsDestination, record.artworkUrl);
+                updated.requiresInstall = requiresInstall;
+                updated.preparedSize = size;
+                updated.preparedDigest = digest;
+                records.set(i, updated);
                 if (writeRecords(records)) return true;
                 // commit(false) may still change SharedPreferences' in-memory snapshot. Restore
                 // the previous marker so a failed save cannot unlock deletion in this process.
@@ -248,42 +260,192 @@ public final class DownloadStore {
         }
     }
 
-    /**
-     * Removes only the original Android download after checking its separately prepared copy.
-     * The caller must serialize this with preparation so the original cannot be in use.
-     */
-    public void deletePreparedOriginal(long id) {
+    /** Records a separate DS ROM only after its export has fully saved and closed it. */
+    public boolean markDsSaved(long id, Uri destination) {
+        Uri saved = preparedUri(destination == null ? null : destination.toString());
+        if (saved == null) return false;
         synchronized (LOCK) {
             List<TrackedDownload> records = readRecords();
-            TrackedDownload originalRecord = null;
+            for (int i = 0; i < records.size(); i++) {
+                TrackedDownload record = records.get(i);
+                if (record.id != id) continue;
+                if (!isDsSource(record)) return false;
+                Uri original = successfulDownloadUri(id);
+                if (original == null || original.equals(saved)) return false;
+                records.set(i, new TrackedDownload(record, record.preparedDestination, saved, record.artworkUrl));
+                if (writeRecords(records)) return true;
+                // A failed commit can still update the in-memory preferences snapshot.
+                records.set(i, record);
+                writeRecords(records);
+                return false;
+            }
+            return false;
+        }
+    }
+
+    /** Returns the saved DS copy only while it is still readable and nonempty. */
+    public Uri savedDsUri(long id) {
+        synchronized (LOCK) {
+            for (TrackedDownload record : readRecords()) {
+                if (record.id != id) continue;
+                Uri saved = record.savedDsDestination;
+                return isDsSource(record) && saved != null && hasReadableContent(saved) ? saved : null;
+            }
+            return null;
+        }
+    }
+
+    private static boolean isDsSource(TrackedDownload record) {
+        String name = record.name.toLowerCase(Locale.ROOT);
+        return name.endsWith(".nds") || name.endsWith(".zip")
+                && (NdsCatalog.HOME.equals(record.sourcePage) || NdsCatalog.isDetailUrl(record.sourcePage));
+    }
+
+    /** Persists an attempt or its result so later refreshes never retry a failure in a loop. */
+    boolean setCompletionStatus(long id, boolean attempted, String status) {
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
             for (TrackedDownload record : records) {
+                if (record.id != id) continue;
+                boolean oldAttempted = record.completionAttempted;
+                String oldStatus = record.completionStatus;
+                record.completionAttempted = attempted;
+                record.completionStatus = status == null ? "" : status;
+                if (writeRecords(records)) return true;
+                record.completionAttempted = oldAttempted;
+                record.completionStatus = oldStatus;
+                writeRecords(records);
+                return false;
+            }
+            return false;
+        }
+    }
+
+    /** Returns the saved game only while its document is readable and nonempty. */
+    public Uri preparedUri(long id) {
+        synchronized (LOCK) {
+            for (TrackedDownload record : readRecords()) {
                 if (record.id == id) {
-                    originalRecord = record;
-                    break;
+                    return record.preparedDestination != null && hasReadableContent(record.preparedDestination)
+                            ? record.preparedDestination : null;
                 }
             }
-            if (originalRecord == null || originalRecord.preparedDestination == null) {
-                throw new IllegalStateException("Prepare this download for Azahar before deleting its original.");
+            return null;
+        }
+    }
+
+    /** Earlier versions did not record evidence strong enough to delete a source automatically. */
+    boolean resetUnverifiedPreparedCopy(long id) {
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
+            for (int i = 0; i < records.size(); i++) {
+                TrackedDownload record = records.get(i);
+                if (record.id != id || record.preparedDestination == null) continue;
+                if (!record.preparedDigest.isEmpty() && record.preparedSize > 0) return true;
+                if (successfulDownloadUri(id) == null) return false;
+                records.set(i, new TrackedDownload(record, null, record.savedDsDestination, record.artworkUrl));
+                if (writeRecords(records)) return true;
+                records.set(i, record);
+                writeRecords(records);
+                return false;
             }
+            return true;
+        }
+    }
+
+    /** Explicit retries rebuild only when the previous saved document cannot be verified. */
+    boolean resetInvalidPreparedCopy(long id) {
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
+            for (int i = 0; i < records.size(); i++) {
+                TrackedDownload record = records.get(i);
+                if (record.id != id || record.preparedDestination == null || record.originalDeleted) continue;
+                if (hasReadableContent(record.preparedDestination) && matchesSavedCopy(record)) return true;
+                if (successfulDownloadUri(id) == null) return false;
+                records.set(i, new TrackedDownload(record, null, record.savedDsDestination, record.artworkUrl));
+                if (writeRecords(records)) return true;
+                records.set(i, record);
+                writeRecords(records);
+                return false;
+            }
+            return true;
+        }
+    }
+
+    /** Removes only a completed source, preserving the saved game's history and destination. */
+    public void deletePreparedOriginal(long id) {
+        deletePreparedOriginal(id, () -> true);
+    }
+
+    void deletePreparedOriginal(long id, BooleanSupplier commitDeletion) {
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
+            TrackedDownload record = null;
+            for (TrackedDownload candidate : records) {
+                if (candidate.id == id) { record = candidate; break; }
+            }
+            if (record == null || record.preparedDestination == null) {
+                throw new IllegalStateException("Save this game to the games folder before deleting its original.");
+            }
+            if (record.originalDeleted) return;
             Uri original = successfulDownloadUri(id);
-            if (original == null) {
+            if (original == null && hasDownload(id)) {
                 throw new IllegalStateException("Only a completed download can have its original deleted.");
             }
-            Uri prepared = originalRecord.preparedDestination;
-            if (original.equals(prepared) || !hasReadableContent(prepared)) {
-                throw new IllegalStateException("The prepared copy is missing, empty, or unavailable. Prepare it again before deleting the original.");
+            Uri prepared = record.preparedDestination;
+            if (prepared.equals(original) || !hasReadableContent(prepared) || !matchesSavedCopy(record)) {
+                throw new IllegalStateException("The saved copy is missing, incomplete, or unavailable. The original download is safe.");
+            }
+            if (!commitDeletion.getAsBoolean()) {
+                throw new IllegalStateException("Saving cancelled. The original download is safe.");
             }
             try {
-                // DownloadManager owns the original. Never delete the prepared document or its folder.
-                manager.remove(id);
+                // DownloadManager owns the original. Never delete the saved document or its folder.
+                if (original != null && manager.remove(id) == 0 && hasDownload(id)) {
+                    throw new IllegalStateException("Android could not delete the original download.");
+                }
             } catch (RuntimeException ignored) {
-                throw new IllegalStateException("Android could not delete this original. Try again shortly.");
+                throw new IllegalStateException("The game was saved, but Android could not delete its original. Retry saving to finish cleanup.");
             }
-            records.remove(originalRecord);
+            record.originalDeleted = true;
+            record.completionAttempted = true;
+            record.completionStatus = "Saved to games folder. Original download removed." + (record.requiresInstall
+                    ? " Use Install CIA in Azahar to add this package."
+                    : " Refresh Azahar's game list to see it.");
             if (!writeRecords(records)) {
-                throw new IllegalStateException("The original was deleted, but the saved list could not be updated.");
+                throw new IllegalStateException("The original was deleted, but its saved status could not be updated. Retry saving to finish cleanup.");
             }
         }
+    }
+
+    private boolean hasDownload(long id) {
+        try (Cursor cursor = manager.query(new DownloadManager.Query().setFilterById(id))) {
+            // An unavailable query must not be mistaken for a deleted source.
+            return cursor == null || cursor.moveToFirst();
+        } catch (RuntimeException ignored) { return true; }
+    }
+
+    private boolean matchesSavedCopy(TrackedDownload record) {
+        if (record.preparedDigest.isEmpty() || record.preparedSize <= 0) return false;
+        try (InputStream stream = context.getContentResolver().openInputStream(record.preparedDestination)) {
+            if (stream == null) return false;
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            long size = 0;
+            byte[] bytes = new byte[128 * 1024];
+            int count;
+            while ((count = stream.read(bytes)) != -1) {
+                if (Thread.currentThread().isInterrupted()) return false;
+                digest.update(bytes, 0, count);
+                size += count;
+            }
+            return size == record.preparedSize && hex(digest.digest()).equals(record.preparedDigest);
+        } catch (IOException | RuntimeException | NoSuchAlgorithmException ignored) { return false; }
+    }
+
+    static String hex(byte[] bytes) {
+        StringBuilder value = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) value.append(String.format(Locale.ROOT, "%02x", b & 0xff));
+        return value.toString();
     }
 
     private Uri successfulDownloadUri(long id) {
@@ -367,11 +529,19 @@ public final class DownloadStore {
                 if (record == null || record.optLong("id", -1) <= 0) {
                     continue;
                 }
-                records.add(new TrackedDownload(record.optLong("id"),
+                TrackedDownload tracked = new TrackedDownload(record.optLong("id"),
                         DownloadPolicy.safeFilename(record.optString("name", "download")),
                         catalogPage(record.optString("sourcePage", CATALOG_HOME)),
                         preparedUri(record.optString("preparedDestination", null)),
-                        record.optString("artworkUrl", "")));
+                        preparedUri(record.optString("savedDsDestination", null)),
+                        record.optString("artworkUrl", ""));
+                tracked.completionAttempted = record.optBoolean("completionAttempted", false);
+                tracked.completionStatus = record.optString("completionStatus", "");
+                tracked.originalDeleted = record.optBoolean("originalDeleted", false);
+                tracked.requiresInstall = record.optBoolean("requiresInstall", true);
+                tracked.preparedSize = record.optLong("preparedSize", -1);
+                tracked.preparedDigest = record.optString("preparedDigest", "");
+                records.add(tracked);
             }
         } catch (JSONException | ClassCastException ignored) {
             // A corrupt local list should not prevent browsing or querying future downloads.
@@ -392,6 +562,15 @@ public final class DownloadStore {
                 }
                 if (record.preparedDestination != null) {
                     object.put("preparedDestination", record.preparedDestination.toString());
+                    object.put("requiresInstall", record.requiresInstall);
+                    object.put("preparedSize", record.preparedSize);
+                    object.put("preparedDigest", record.preparedDigest);
+                }
+                object.put("completionAttempted", record.completionAttempted);
+                object.put("completionStatus", record.completionStatus);
+                object.put("originalDeleted", record.originalDeleted);
+                if (record.savedDsDestination != null) {
+                    object.put("savedDsDestination", record.savedDsDestination.toString());
                 }
                 array.put(object);
             }
@@ -530,14 +709,32 @@ public final class DownloadStore {
         final String name;
         final String sourcePage;
         final Uri preparedDestination;
+        final Uri savedDsDestination;
         final String artworkUrl;
+        boolean completionAttempted;
+        boolean originalDeleted;
+        boolean requiresInstall = true;
+        long preparedSize = -1;
+        String preparedDigest = "";
+        String completionStatus = "";
 
-        TrackedDownload(long id, String name, String sourcePage, Uri preparedDestination,
+        TrackedDownload(TrackedDownload other, Uri preparedDestination, Uri savedDsDestination, String artworkUrl) {
+            this(other.id, other.name, other.sourcePage, preparedDestination, savedDsDestination, artworkUrl);
+            completionAttempted = other.completionAttempted;
+            originalDeleted = other.originalDeleted;
+            requiresInstall = other.requiresInstall;
+            preparedSize = other.preparedSize;
+            preparedDigest = other.preparedDigest;
+            completionStatus = other.completionStatus;
+        }
+
+        TrackedDownload(long id, String name, String sourcePage, Uri preparedDestination, Uri savedDsDestination,
                         String artworkUrl) {
             this.id = id;
             this.name = name;
             this.sourcePage = sourcePage;
             this.preparedDestination = preparedDestination;
+            this.savedDsDestination = savedDsDestination;
             this.artworkUrl = ArtworkPolicy.isAllowed(artworkUrl) ? artworkUrl : "";
         }
     }
@@ -551,6 +748,14 @@ public final class DownloadStore {
         public final String displayName;
         public final String sourcePage;
         public final String artworkUrl;
+        /** Saved export metadata; use savedDsUri before opening to verify the document is available. */
+        public final Uri savedDsDestination;
+        public final Uri preparedDestination;
+        public final boolean originalDeleted;
+        public final boolean completionAttempted;
+        public final boolean requiresInstall;
+        public final boolean hasVerifiedCopy;
+        public final String completionStatus;
         public final String statusLabel;
         public final int status;
         public final int reason;
@@ -563,6 +768,13 @@ public final class DownloadStore {
             this.displayName = GameFilename.clean(record.name);
             this.sourcePage = record.sourcePage;
             this.artworkUrl = record.artworkUrl;
+            this.savedDsDestination = record.savedDsDestination;
+            this.preparedDestination = record.preparedDestination;
+            this.originalDeleted = record.originalDeleted;
+            this.completionAttempted = record.completionAttempted;
+            this.requiresInstall = record.requiresInstall;
+            this.hasVerifiedCopy = record.preparedSize > 0 && !record.preparedDigest.isEmpty();
+            this.completionStatus = record.completionStatus;
             this.downloaded = downloaded;
             this.total = total;
             this.status = status;

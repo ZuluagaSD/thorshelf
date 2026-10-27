@@ -84,11 +84,11 @@ public class DownloadArtworkUiTest {
         ViewGroup originalCard = card(first, "root");
         FrameLayout artwork = card(first, "artwork");
         View fallback = artwork.getChildAt(0);
-        Button prepare = find(originalCard, Button.class,
-                view -> "Prepare for Azahar".contentEquals(view.getText()));
-        assertNotNull(prepare);
-        prepare.setFocusableInTouchMode(true);
-        assertTrue(prepare.requestFocus());
+        Button folder = find(originalCard, Button.class,
+                view -> "Choose games folder".contentEquals(view.getText()));
+        assertNotNull(folder);
+        folder.setFocusableInTouchMode(true);
+        assertTrue(folder.requestFocus());
         render();
         ExecutorService downloadQueries = ReflectionHelpers.getField(activity, "downloadQueries");
         assertEquals("available", downloadQueries.submit(() -> "available").get(1, TimeUnit.SECONDS));
@@ -100,10 +100,10 @@ public class DownloadArtworkUiTest {
 
         for (DownloadStore.Entry entry : store.list()) assertEquals(ART, entry.artworkUrl);
         assertSame(originalCard, card(first, "root"));
-        assertSame(prepare, find(originalCard, Button.class,
-                view -> "Prepare for Azahar".contentEquals(view.getText())));
+        assertSame(folder, find(originalCard, Button.class,
+                view -> "Choose games folder".contentEquals(view.getText())));
         assertNotSame(fallback, artwork.getChildAt(0));
-        assertTrue("Replacing decoration must keep controller focus", prepare.hasFocus());
+        assertTrue("Replacing decoration must keep controller focus", folder.hasFocus());
         render();
         drainMetadata();
         assertEquals(1, client.fetchCount(SOURCE));

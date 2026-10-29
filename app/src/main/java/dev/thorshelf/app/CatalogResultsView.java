@@ -36,7 +36,7 @@ final class CatalogResultsView extends LinearLayout {
     };
     private CatalogPage page;
     private boolean wide;
-    private boolean ndsCatalog;
+    private GamePlatform platform = GamePlatform.THREE_DS;
     private String language = "";
     private String region = "";
 
@@ -81,7 +81,7 @@ final class CatalogResultsView extends LinearLayout {
         Ui.styleProgress(progress);
         progress.setContentDescription("Loading catalog");
         row.addView(progress, new LinearLayout.LayoutParams(Ui.dp(getContext(), 28), Ui.dp(getContext(), 28)));
-        TextView message = Ui.text(getContext(), "Bringing the catalog to your shelf", 15, Ui.MUTED);
+        TextView message = Ui.text(getContext(), "Bringing the catalog to your shelf", 15, Ui.colors(getContext()).MUTED);
         LinearLayout.LayoutParams copy = new LinearLayout.LayoutParams(0, -2, 1);
         copy.leftMargin = Ui.dp(getContext(), 14);
         row.addView(message, copy);
@@ -95,7 +95,7 @@ final class CatalogResultsView extends LinearLayout {
         addHeading(title, "");
         LinearLayout card = Ui.card(getContext());
         TextView explanation = Ui.text(getContext(), valueOr(message,
-                "Check your connection and try again."), 15, Ui.MUTED);
+                "Check your connection and try again."), 15, Ui.colors(getContext()).MUTED);
         explanation.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         card.addView(explanation);
         LinearLayout actions = wide ? Ui.row(getContext()) : Ui.column(getContext());
@@ -118,7 +118,7 @@ final class CatalogResultsView extends LinearLayout {
 
     void showPage(CatalogPage page) {
         this.page = page;
-        ndsCatalog = NdsCatalog.isPageUrl(page.url);
+        platform = GamePlatform.forCatalog(page.url);
         // Replacing a focused result must not scroll straight to its action button.
         if (hasFocus()) scroll.requestFocus();
         renderPage();
@@ -129,8 +129,10 @@ final class CatalogResultsView extends LinearLayout {
     }
 
     void setNdsCatalog(boolean ndsCatalog) {
-        this.ndsCatalog = ndsCatalog;
+        platform = ndsCatalog ? GamePlatform.DS : GamePlatform.THREE_DS;
     }
+
+    void setPlatform(GamePlatform platform) { this.platform = platform; }
 
     void setFilters(String language, String region) {
         this.language = CatalogLanguages.normalize(language);
@@ -169,15 +171,15 @@ final class CatalogResultsView extends LinearLayout {
             addGrid(entries, wide && !page.isDetail() ? 2 : 1);
         } else if (page.categories == null || page.categories.isEmpty()) {
             LinearLayout empty = Ui.card(getContext());
-            TextView title = Ui.text(getContext(), emptyTitle(), 18, Ui.TEXT);
+            TextView title = Ui.text(getContext(), emptyTitle(), 18, Ui.colors(getContext()).TEXT);
             title.setTypeface(null, Typeface.BOLD);
             empty.addView(title);
-            empty.addView(Ui.text(getContext(), emptyMessage(), 15, Ui.MUTED));
+            empty.addView(Ui.text(getContext(), emptyMessage(), 15, Ui.colors(getContext()).MUTED));
             body.addView(empty, spaced(-1, -2, 14));
         }
         if (page.isDetail() && hasText(page.summary)
                 && !page.summary.equals("No description is available for this content.")) {
-            body.addView(Ui.text(getContext(), page.summary, 14, Ui.MUTED), spaced(-1, -2, 16));
+            body.addView(Ui.text(getContext(), page.summary, 14, Ui.colors(getContext()).MUTED), spaced(-1, -2, 16));
         }
         addPagination();
         addAttribution();
@@ -204,16 +206,16 @@ final class CatalogResultsView extends LinearLayout {
         heading.setTextSize(24);
         heading.setAccessibilityHeading(true);
         body.addView(heading);
-        if (hasText(summary)) body.addView(Ui.text(getContext(), summary, 14, Ui.MUTED));
+        if (hasText(summary)) body.addView(Ui.text(getContext(), summary, 14, Ui.colors(getContext()).MUTED));
     }
 
     private View categoryCard(CatalogPage.Category category) {
         LinearLayout card = Ui.card(getContext());
-        TextView title = Ui.text(getContext(), category.title, 19, Ui.TEXT);
+        TextView title = Ui.text(getContext(), category.title, 19, Ui.colors(getContext()).TEXT);
         title.setTypeface(null, Typeface.BOLD);
         card.addView(title);
         if (hasText(category.description)) {
-            card.addView(Ui.text(getContext(), category.description, 14, Ui.MUTED));
+            card.addView(Ui.text(getContext(), category.description, 14, Ui.colors(getContext()).MUTED));
         }
         Button open = Ui.button(getContext(), "Browse category", () -> listener.onNavigate(category.url));
         open.setContentDescription("Browse " + category.title);
@@ -231,18 +233,18 @@ final class CatalogResultsView extends LinearLayout {
         identity.addView(GameArtwork.thumbnail(context, entry.title, entry.artworkUrl, artSize),
                 new LinearLayout.LayoutParams(Ui.dp(context, artSize), Ui.dp(context, artSize)));
         LinearLayout copy = Ui.column(context);
-        TextView title = Ui.text(context, valueOr(entry.title, "Untitled content"), detail ? 22 : 18, Ui.TEXT);
+        TextView title = Ui.text(context, valueOr(entry.title, "Untitled content"), detail ? 22 : 18, Ui.colors(getContext()).TEXT);
         title.setTypeface(null, Typeface.BOLD);
         title.setAccessibilityHeading(true);
         copy.addView(title);
         String metadata = metadata(entry, detail);
-        if (hasText(metadata)) copy.addView(Ui.text(context, metadata, 13, Ui.MUTED));
+        if (hasText(metadata)) copy.addView(Ui.text(context, metadata, 13, Ui.colors(getContext()).MUTED));
         LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(0, -2, 1);
         copyParams.leftMargin = Ui.dp(context, 14);
         identity.addView(copy, copyParams);
         card.addView(identity);
 
-        if (NdsCatalog.isEditionSelectionUrl(entry.url)) {
+        if (GamePlatform.isEditionSelectionUrl(entry.url)) {
             Button editions = Ui.primaryButton(context, "Choose edition", () -> listener.onNavigate(entry.url));
             editions.setContentDescription("Choose an edition of " + entry.title);
             revealCardOnFocus(editions, card);
@@ -255,7 +257,7 @@ final class CatalogResultsView extends LinearLayout {
             if (hasText(entry.titleId)) addDetail(card, "Title ID", entry.titleId);
             String languages = languageNames(entry);
             if (hasText(languages)) addDetail(card, "Languages", languages);
-            else card.addView(Ui.text(context, "Language not listed", 14, Ui.MUTED), spaced(-1, -2, 8));
+            else card.addView(Ui.text(context, "Language not listed", 14, Ui.colors(getContext()).MUTED), spaced(-1, -2, 8));
         }
         LinearLayout actions = Ui.row(context);
         Button download = Ui.primaryButton(context, "Download", () -> {
@@ -286,14 +288,14 @@ final class CatalogResultsView extends LinearLayout {
     }
 
     private void addDetail(LinearLayout card, String label, String value) {
-        TextView detail = Ui.text(getContext(), label + ": " + value, 14, Ui.MUTED);
+        TextView detail = Ui.text(getContext(), label + ": " + value, 14, Ui.colors(getContext()).MUTED);
         card.addView(detail, spaced(-1, -2, 8));
     }
 
     private String metadata(CatalogPage.Entry entry, boolean detail) {
         List<String> pieces = new ArrayList<>();
         if (hasText(entry.category)) pieces.add(metadataLabel(entry.category));
-        if (NdsCatalog.isEditionSelectionUrl(entry.url) && hasText(entry.contentType)) pieces.add(entry.contentType);
+        if (GamePlatform.isEditionSelectionUrl(entry.url) && hasText(entry.contentType)) pieces.add(entry.contentType);
         if (hasText(entry.region) && !entry.region.equalsIgnoreCase(entry.category)) pieces.add(metadataLabel(entry.region));
         if (hasText(entry.size)) pieces.add(entry.size);
         String languages = languageNames(entry);
@@ -349,12 +351,14 @@ final class CatalogResultsView extends LinearLayout {
     }
 
     private void addAttribution() {
-        TextView attribution = Ui.text(getContext(), ndsCatalog
+        TextView attribution = Ui.text(getContext(), platform == GamePlatform.GBA
+                ? "GBA catalog: No-Intro / libretro · Downloads: Central Arquivista · Cover art: libretro"
+                : platform == GamePlatform.DS
                 ? page != null && page.summary.contains("NDS-Shop")
                         ? "Catalog and artwork from NDS-Shop · Check the region for each edition"
                         : "DS catalog: DSiDrop · Cover art: libretro · Check the language and region for each edition"
                 : "Catalog information from hShop · Artwork is illustrative"
-                        + (language.isEmpty() ? "" : " · Languages: 3dsdb.com"), 13, Ui.MUTED);
+                        + (language.isEmpty() ? "" : " · Languages: 3dsdb.com"), 13, Ui.colors(getContext()).MUTED);
         body.addView(attribution, spaced(-1, -2, 16));
     }
 

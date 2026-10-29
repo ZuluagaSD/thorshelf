@@ -45,15 +45,20 @@ public final class ExportService extends Service {
 
     /** The destination must be a newly created SAF document, never an existing library file. */
     public static void start(Context context, long downloadId, Uri destination, String name) {
-        start(context, downloadId, destination, name, false);
+        start(context, downloadId, destination, name, null);
     }
 
     /** Exports an original .nds file, extracting exactly one ROM when its download is a ZIP. */
     public static void startNds(Context context, long downloadId, Uri destination, String name) {
-        start(context, downloadId, destination, name, true);
+        start(context, downloadId, destination, name, GamePlatform.DS);
     }
 
-    private static void start(Context context, long downloadId, Uri destination, String name, boolean nds) {
+    /** Exports a raw GBA file only after its persisted catalog size and SHA-1 are verified. */
+    public static void startGba(Context context, long downloadId, Uri destination, String name) {
+        start(context, downloadId, destination, name, GamePlatform.GBA);
+    }
+
+    private static void start(Context context, long downloadId, Uri destination, String name, GamePlatform romPlatform) {
         Context app = context.getApplicationContext();
         if (app == null) app = context;
         if (downloadId <= 0 || destination == null || !"content".equals(destination.getScheme())) {
@@ -86,7 +91,8 @@ public final class ExportService extends Service {
                 .putExtra("download_id", downloadId)
                 .putExtra("destination", destination.toString())
                 .putExtra("name", safeName)
-                .putExtra("nds", nds)
+                .putExtra("nds", romPlatform == GamePlatform.DS)
+                .putExtra("rom_platform", romPlatform == null ? "" : romPlatform.id)
                 .putExtra("token", token);
         try {
             app.startForegroundService(intent);
@@ -156,8 +162,10 @@ public final class ExportService extends Service {
             if (!current.token.equals(token)) deleteUnusedDocument(this, destination);
             return START_NOT_STICKY;
         }
-        CopyJob job = new CopyJob(startId, downloadId, destination, name, token,
-                intent.getBooleanExtra("nds", false));
+        GamePlatform romPlatform = "gba".equals(intent.getStringExtra("rom_platform")) ? GamePlatform.GBA
+                : "nds".equals(intent.getStringExtra("rom_platform")) || intent.getBooleanExtra("nds", false)
+                ? GamePlatform.DS : null;
+        CopyJob job = new CopyJob(startId, downloadId, destination, name, token, romPlatform);
         current = job;
         synchronized (STATE_LOCK) {
             active = true;
@@ -184,7 +192,7 @@ public final class ExportService extends Service {
             // ACTION_CREATE_DOCUMENT should produce an empty document; never replace existing content.
             long destinationSize = sizeOf(resolver, job.destination);
             job.destinationVerified = true;
-            if (destinationSize > 0 || job.nds && destinationSize < 0) {
+            if (destinationSize > 0 || job.romPlatform != null && destinationSize < 0) {
                 job.mayDeleteDestination = false;
                 message = destinationSize > 0
                         ? "The chosen destination already contains data. Choose a new filename for the export."
@@ -204,12 +212,26 @@ public final class ExportService extends Service {
                 return;
             }
             String sourceName = null;
-            if (job.nds) {
+            DownloadStore.Entry sourceEntry = null;
+            if (job.romPlatform != null) {
                 for (DownloadStore.Entry entry : store.list()) {
-                    if (entry.id == job.downloadId && entry.isComplete()) sourceName = entry.name;
+                    if (entry.id == job.downloadId && entry.isComplete()) {
+                        sourceEntry = entry;
+                        sourceName = entry.name;
+                    }
                 }
+            }
+            if (job.romPlatform == GamePlatform.GBA) {
+                if (sourceEntry == null || sourceEntry.platform != GamePlatform.GBA
+                        || !DownloadPolicy.isGbaContentFile(sourceName)
+                        || !GbaRomExporter.hasExpectedIdentity(sourceEntry.expectedSha1, sourceEntry.expectedSize)) {
+                    message = "Choose a completed .gba download with a valid catalog checksum.";
+                    return;
+                }
+            } else if (job.romPlatform == GamePlatform.DS) {
                 // Use the saved source name, never the display name supplied by the picker caller.
-                if (sourceName == null || !(sourceName.toLowerCase(java.util.Locale.ROOT).endsWith(".nds")
+                if (sourceEntry == null || sourceEntry.platform != GamePlatform.DS
+                        || !(sourceName.toLowerCase(java.util.Locale.ROOT).endsWith(".nds")
                         || sourceName.toLowerCase(java.util.Locale.ROOT).endsWith(".zip"))) {
                     message = "Choose a completed .nds download or a ZIP containing one DS ROM.";
                     return;
@@ -227,7 +249,21 @@ public final class ExportService extends Service {
             }
             job.output = resolver.openOutputStream(job.destination, "wt");
             if (job.output == null) throw new IOException();
-            if (job.nds) {
+            if (job.romPlatform == GamePlatform.GBA) {
+                job.verifiedSize = GbaRomExporter.export(job.input, job.output, total,
+                        sourceEntry.expectedSha1, sourceEntry.expectedSize, new GbaRomExporter.Progress() {
+                    long lastUpdate;
+                    @Override public boolean isCancelled() { return job.cancelled; }
+                    @Override public void onProgress(long copied, long expected) {
+                        long now = SystemClock.elapsedRealtime();
+                        if (now - lastUpdate >= 500) {
+                            progress(job, copied, expected);
+                            lastUpdate = now;
+                        }
+                    }
+                });
+                job.verifiedSha1 = sourceEntry.expectedSha1;
+            } else if (job.romPlatform == GamePlatform.DS) {
                 NdsRomExporter.export(job.input, job.output, sourceName, total, new NdsRomExporter.Progress() {
                     long lastUpdate;
                     @Override public boolean isCancelled() { return job.cancelled; }
@@ -271,6 +307,8 @@ public final class ExportService extends Service {
             message = "Access to the export destination was lost. Choose the destination again.";
         } catch (NdsRomExporter.InvalidRomException invalid) {
             message = invalid.getMessage();
+        } catch (GbaRomExporter.InvalidRomException invalid) {
+            message = invalid.getMessage();
         } catch (IOException | RuntimeException ignored) {
             // Provider exceptions can contain private paths; use the actionable message above.
         } finally {
@@ -281,7 +319,8 @@ public final class ExportService extends Service {
     }
 
     private void progress(CopyJob job, long copied, long total) {
-        String message = (job.nds ? "Exporting DS ROM " : "Copying ") + job.name + " · " + bytes(copied)
+        String message = (job.romPlatform == null ? "Copying " : "Exporting " + job.romPlatform.shortLabel + " ROM ")
+                + job.name + " · " + bytes(copied)
                 + (total > 0 ? " / " + bytes(total) : "");
         synchronized (STATE_LOCK) {
             if (job.finished.get() || !job.token.equals(activeToken)) return;
@@ -306,19 +345,23 @@ public final class ExportService extends Service {
         if (!cleaned) {
             message += " Remove the partial destination file manually. The original download is safe.";
         }
-        boolean dsSaved = false;
-        if (success && job.nds) {
+        boolean romSaved = false;
+        if (success && job.romPlatform != null) {
             try {
-                dsSaved = new DownloadStore(this).markDsSaved(job.downloadId, job.destination);
+                DownloadStore store = new DownloadStore(this);
+                romSaved = job.romPlatform == GamePlatform.GBA
+                        ? store.markGbaSaved(job.downloadId, job.destination, job.verifiedSize, job.verifiedSha1)
+                        : store.markDsSaved(job.downloadId, job.destination);
             } catch (RuntimeException ignored) {
                 // The document is complete even when its launch metadata cannot be saved.
             }
-            if (!dsSaved) {
+            if (!romSaved) {
                 message = "Export complete: " + job.name
-                        + ". ThorShelf could not remember this copy; open the saved file from melonDS.";
+                        + ". ThorShelf could not remember this copy; open the saved file from "
+                        + (job.romPlatform == GamePlatform.DS ? "melonDS." : "your GBA emulator.");
             }
         }
-        releaseDocumentGrant(this, job.destination, dsSaved);
+        releaseDocumentGrant(this, job.destination, romSaved);
         synchronized (STATE_LOCK) {
             if (job.token.equals(activeToken)) {
                 preferences(this).edit().putString("status", message).putBoolean("in_progress", false)
@@ -482,7 +525,9 @@ public final class ExportService extends Service {
         final Uri destination;
         final String name;
         final String token;
-        final boolean nds;
+        final GamePlatform romPlatform;
+        long verifiedSize = -1;
+        String verifiedSha1 = "";
         final AtomicBoolean finished = new AtomicBoolean();
         final AtomicBoolean started = new AtomicBoolean();
         volatile Future<?> future;
@@ -493,13 +538,13 @@ public final class ExportService extends Service {
         volatile boolean mayDeleteDestination;
         volatile String cancelMessage = "Export was interrupted. The original download is safe; export it again.";
 
-        CopyJob(int startId, long downloadId, Uri destination, String name, String token, boolean nds) {
+        CopyJob(int startId, long downloadId, Uri destination, String name, String token, GamePlatform romPlatform) {
             this.startId = startId;
             this.downloadId = downloadId;
             this.destination = destination;
             this.name = name;
             this.token = token;
-            this.nds = nds;
+            this.romPlatform = romPlatform;
         }
     }
 }

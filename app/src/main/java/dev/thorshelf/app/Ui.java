@@ -24,20 +24,9 @@ import android.widget.TextView;
 
 /** Shared native controls for ThorShelf's warm, handheld-friendly shop. */
 final class Ui {
-    static final int BG = Color.rgb(250, 248, 242);
-    static final int SURFACE = Color.WHITE;
-    static final int PANEL = SURFACE;
-    static final int SOFT = Color.rgb(243, 238, 229);
-    static final int TEXT = Color.rgb(45, 40, 39);
-    static final int MUTED = Color.rgb(111, 104, 98);
-    static final int BORDER = Color.rgb(223, 214, 202);
-    static final int ORANGE = Color.rgb(245, 136, 33);
-    static final int ACCENT = Color.rgb(196, 81, 0);
-    static final int SUCCESS = Color.rgb(39, 124, 71);
-    static final int MINT = ACCENT;
-    static final int AMBER = Color.rgb(148, 86, 0);
-
     private Ui() { }
+
+    static AppTheme.Palette colors(Context c) { return AppTheme.palette(c); }
 
     static int dp(Context c, int v) { return Math.round(c.getResources().getDisplayMetrics().density * v); }
 
@@ -72,7 +61,7 @@ final class Ui {
     }
 
     static TextView heading(Context c, String value) {
-        TextView v = text(c, value, 26, TEXT);
+        TextView v = text(c, value, 26, colors(c).TEXT);
         v.setTypeface(Typeface.create("sans-serif-rounded", Typeface.BOLD));
         v.setLetterSpacing(-0.025f);
         return v;
@@ -90,13 +79,13 @@ final class Ui {
         return d;
     }
 
-    static LinearLayout card(Context c) { return card(c, SURFACE); }
+    static LinearLayout card(Context c) { return card(c, colors(c).SURFACE); }
 
     static LinearLayout card(Context c, int color) {
         LinearLayout v = column(c);
         pad(v, 18);
-        v.setBackground(rounded(c, color, BORDER));
-        v.setElevation(dp(c, 1));
+        v.setBackground(rounded(c, color, colors(c).BORDER));
+        v.setElevation(colors(c).oled ? 0 : dp(c, 1));
         return v;
     }
 
@@ -121,6 +110,7 @@ final class Ui {
     }
 
     private static Button makeButton(Context c, String label, Runnable action, boolean primary, boolean tab, int radius) {
+        AppTheme.Palette colors = colors(c);
         Button b = new Button(c);
         b.setText(label);
         b.setTextSize(tab ? 14 : 13);
@@ -130,7 +120,8 @@ final class Ui {
         b.setTextColor(new ColorStateList(new int[][] {
                 new int[] {-android.R.attr.state_enabled},
                 new int[] {android.R.attr.state_selected}, new int[] {}},
-                new int[] {MUTED, tab ? SURFACE : primary ? SURFACE : TEXT, primary ? SURFACE : TEXT}));
+                new int[] {colors.MUTED, tab || primary ? colors.ON_ACCENT : colors.TEXT,
+                        primary ? colors.ON_ACCENT : colors.TEXT}));
         b.setMinWidth(0);
         b.setMinimumWidth(0);
         b.setMinHeight(dp(c, tab ? 44 : 48));
@@ -139,16 +130,16 @@ final class Ui {
         b.setStateListAnimator(null);
         b.setBackgroundTintList(null);
         b.setElevation(0);
-        int fill = primary ? ACCENT : tab ? Color.TRANSPARENT : SOFT;
-        int stroke = primary || tab ? 0 : BORDER;
+        int fill = primary ? colors.ACCENT : tab ? Color.TRANSPARENT : colors.SOFT;
+        int stroke = primary || tab ? 0 : colors.BORDER;
         StateListDrawable states = new StateListDrawable();
-        states.addState(new int[] {-android.R.attr.state_enabled}, rounded(c, SOFT, BORDER, radius));
+        states.addState(new int[] {-android.R.attr.state_enabled}, rounded(c, colors.SOFT, colors.BORDER, radius));
         states.addState(new int[] {android.R.attr.state_focused, android.R.attr.state_selected},
-                focusBackground(c, tab ? ACCENT : fill, radius));
+                focusBackground(c, tab ? colors.ACCENT : fill, radius));
         states.addState(new int[] {android.R.attr.state_focused}, focusBackground(c, fill, radius));
-        states.addState(new int[] {android.R.attr.state_selected}, rounded(c, tab ? ACCENT : fill, stroke, radius));
+        states.addState(new int[] {android.R.attr.state_selected}, rounded(c, tab ? colors.ACCENT : fill, stroke, radius));
         states.addState(new int[] {}, rounded(c, fill, stroke, radius));
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x30F58821), states,
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(colors.dark ? 0x40FFA64D : 0x30F58821), states,
                 rounded(c, Color.WHITE, 0, radius)));
         b.setOnClickListener(v -> action.run());
         return b;
@@ -156,9 +147,10 @@ final class Ui {
 
     /** Keep controller focus visible even when the focused tab is already selected. */
     private static Drawable focusBackground(Context c, int fill, int radius) {
-        GradientDrawable outer = rounded(c, SURFACE, 0, radius);
-        outer.setStroke(dp(c, 2), ORANGE);
-        GradientDrawable inner = rounded(c, fill == Color.TRANSPARENT ? SOFT : fill, 0, Math.max(0, radius - 4));
+        AppTheme.Palette colors = colors(c);
+        GradientDrawable outer = rounded(c, colors.SURFACE, 0, radius);
+        outer.setStroke(dp(c, 2), colors.ORANGE);
+        GradientDrawable inner = rounded(c, fill == Color.TRANSPARENT ? colors.SOFT : fill, 0, Math.max(0, radius - 4));
         LayerDrawable layers = new LayerDrawable(new Drawable[] {outer, inner});
         int inset = dp(c, 4);
         layers.setLayerInset(1, inset, inset, inset, inset);
@@ -167,16 +159,18 @@ final class Ui {
 
     static void styleProgress(ProgressBar progress) {
         Context c = progress.getContext();
-        GradientDrawable track = rounded(c, BORDER, 0, 20);
+        AppTheme.Palette colors = colors(c);
+        GradientDrawable track = rounded(c, colors.BORDER, 0, 20);
         GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[] {Color.rgb(243, 122, 20), Color.rgb(255, 162, 54)});
+                colors.dark ? new int[] {colors.ACCENT, 0xFFFFC477}
+                        : new int[] {Color.rgb(243, 122, 20), Color.rgb(255, 162, 54)});
         fill.setCornerRadius(dp(c, 20));
         ClipDrawable clip = new ClipDrawable(fill, Gravity.START, ClipDrawable.HORIZONTAL);
         LayerDrawable drawable = new LayerDrawable(new Drawable[] {track, clip});
         drawable.setId(0, android.R.id.background);
         drawable.setId(1, android.R.id.progress);
         progress.setProgressDrawable(drawable);
-        progress.setIndeterminateTintList(ColorStateList.valueOf(ORANGE));
+        progress.setIndeterminateTintList(ColorStateList.valueOf(colors.ORANGE));
         progress.setProgressTintList(null);
         progress.setProgressBackgroundTintList(null);
     }
@@ -203,14 +197,19 @@ final class Ui {
     private static final class DottedBackground extends Drawable {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final float density;
+        private final AppTheme.Palette colors;
         private int alpha = 255;
-        DottedBackground(Context c) { density = c.getResources().getDisplayMetrics().density; }
+        DottedBackground(Context c) {
+            density = c.getResources().getDisplayMetrics().density;
+            colors = colors(c);
+        }
         @Override public void draw(Canvas canvas) {
-            paint.setColor(BG);
+            paint.setColor(colors.BG);
             paint.setAlpha(alpha);
             canvas.drawRect(getBounds(), paint);
-            paint.setColor(0x16D99545);
-            paint.setAlpha(22 * alpha / 255);
+            if (colors.oled) return;
+            paint.setColor(colors.dark ? colors.ORANGE : 0xFFD99545);
+            paint.setAlpha((colors.dark ? 12 : 22) * alpha / 255);
             float step = 16 * density;
             for (float y = getBounds().top + step / 2; y < getBounds().bottom; y += step) {
                 for (float x = getBounds().left + step / 2; x < getBounds().right; x += step) {

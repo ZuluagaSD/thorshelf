@@ -113,6 +113,55 @@ public class NdsGamesFolderTest {
         assertEquals(0, documents.deleteCalls);
     }
 
+    @Test public void gbaFolderPreferenceIsIndependentOfDsAndPreparationFolders() {
+        SharedPreferences preferences = app.getSharedPreferences("settings", Context.MODE_PRIVATE);
+        Uri ds = DocumentsContract.buildTreeDocumentUri(FolderProvider.AUTHORITY, "ds");
+        Uri threeDs = DocumentsContract.buildTreeDocumentUri(FolderProvider.AUTHORITY, "3ds");
+        preferences.edit().putString(NdsGamesFolder.PREFERENCE, ds.toString())
+                .putString(PreparationFolder.PREFERENCE, threeDs.toString()).commit();
+        assertNull(GbaGamesFolder.saved(preferences));
+        preferences.edit().putString(GbaGamesFolder.PREFERENCE, documents.tree.toString()).commit();
+        assertEquals(documents.tree, GbaGamesFolder.saved(preferences));
+        assertEquals(ds, NdsGamesFolder.saved(preferences));
+        assertEquals(threeDs, PreparationFolder.saved(preferences));
+        preferences.edit().putString(GbaGamesFolder.PREFERENCE, "file:///sdcard/GBA").commit();
+        assertNull(GbaGamesFolder.saved(preferences));
+    }
+
+    @Test public void createsGbaChildAndRoutesThroughVerifiedExporterWhileRetainingTreeGrant() throws Exception {
+        Files.write(source.toPath(), rom);
+        GbaTestData.markSynthetic(app, downloadId, rom);
+        GbaGamesFolder.startExport(app, downloadId, documents.tree, "Demo.zip");
+        Intent intent = shadowOf(app).getNextStartedService();
+        assertNotNull(intent);
+        assertEquals("gba", intent.getStringExtra("rom_platform"));
+        assertFalse(intent.getBooleanExtra("nds", false));
+        assertEquals("Demo.gba", intent.getStringExtra("name"));
+        service = Robolectric.buildService(ExportService.class, intent).create().startCommand(0, 1);
+        awaitFinished();
+        assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export complete:"));
+        assertEquals("Demo.gba", documents.requestedName);
+        assertArrayEquals(rom, Files.readAllBytes(documents.files.get(documents.created).toPath()));
+        assertArrayEquals(rom, Files.readAllBytes(source.toPath()));
+        assertEquals(documents.created, new DownloadStore(app).savedGbaUri(downloadId));
+        assertNull(new DownloadStore(app).savedDsUri(downloadId));
+        assertTrue(PreparationFolder.hasPersistedAccess(app, documents.tree));
+        assertEquals(1, app.getContentResolver().getPersistedUriPermissions().size());
+        assertEquals(0, documents.deleteCalls);
+    }
+
+    @Test public void gbaFolderRejectsAnExistingEmptyDocumentWithoutChangingIt() throws Exception {
+        Uri existing = documents.add("Existing.gba", new byte[0]);
+        documents.resultOverride = existing;
+        assertThrows(IOException.class,
+                () -> GbaGamesFolder.startExport(app, downloadId, documents.tree, "Demo.gba"));
+        assertNull(shadowOf(app).getNextStartedService());
+        assertEquals(0, documents.deleteCalls);
+        assertTrue(documents.files.get(existing).exists());
+        assertEquals(0, documents.files.get(existing).length());
+        assertArrayEquals(archive, Files.readAllBytes(source.toPath()));
+    }
+
     @Test public void providerResolvesFilenameCollisionWithoutChangingExistingGame() throws Exception {
         Uri existing = documents.add("Demo.nds", new byte[]{7, 9});
         startAndFinish();

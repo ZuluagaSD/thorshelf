@@ -1,0 +1,2 @@
+# An empty final serial field is represented by a trailing TAB in the GBA TSV.
+app/src/main/resources/gba-catalog.tsv whitespace=-blank-at-eol

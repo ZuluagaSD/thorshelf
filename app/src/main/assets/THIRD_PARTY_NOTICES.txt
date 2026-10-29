@@ -695,3 +695,28 @@ ThorShelf requests covers from https://art.gametdb.com/ using the exact product
 code and region supplied by hShop. Covers are cached in memory, not bundled
 with the APK. Missing covers use the app's existing fallback artwork.
 GameTDB usage information: https://www.gametdb.com/Main/FAQ
+
+
+GBA catalog metadata and artwork
+================================
+ThorShelf bundles 3,054 raw-ROM identities matched by exact SHA-1 and byte size
+against the Central Arquivista Game Boy Advance file manifest. No ROMs are bundled.
+Canonical names, serials, language/region annotations and identities are from
+No-Intro contributors, distributed by libretro database contributors.
+
+No-Intro: https://no-intro.org/
+Database: https://github.com/libretro/libretro-database
+DAT: metadat/no-intro/Nintendo - Game Boy Advance.dat, version 2026.10.07
+Database license: https://github.com/libretro/libretro-database/blob/master/COPYING
+Derived catalog metadata: Creative Commons Attribution-ShareAlike 4.0 International
+License: https://creativecommons.org/licenses/by-sa/4.0/
+Changes (2026-10-29): joined the source manifest, selected matching editions,
+derived title groups and extracted explicit language/region fields.
+Exact input SHA-256 values are recorded in gba-catalog.tsv. Reproduction and
+provenance: docs/GBA_CATALOG.md and scripts/generate_gba_catalog.py.
+
+Source manifest: https://archive.org/metadata/CentralArquivista-GameBoyAdvance
+Downloads: https://archive.org/details/CentralArquivista-GameBoyAdvance
+Artwork: https://github.com/libretro-thumbnails/Nintendo_-_Game_Boy_Advance
+Artwork is requested remotely, remains separately attributed, and is not covered
+by the metadata license above. Game downloads retain their own rights and licenses.

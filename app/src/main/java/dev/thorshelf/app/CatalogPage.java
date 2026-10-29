@@ -32,7 +32,7 @@ final class CatalogPage {
     }
 
     boolean isDetail() {
-        return NdsCatalog.isDetailUrl(url) || (CatalogParser.isCatalogPageUrl(url)
+        return NdsCatalog.isDetailUrl(url) || GbaCatalog.isDetailUrl(url) || (CatalogParser.isCatalogPageUrl(url)
                 && URI.create(url).getRawPath().matches("/t/[0-9]{1,12}/?"));
     }
 

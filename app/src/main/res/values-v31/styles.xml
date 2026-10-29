@@ -1,0 +1,9 @@
+<resources>
+    <!-- Android 12+ provides the launch screen; no extra Activity or timed splash is needed. -->
+    <style name="AppTheme" parent="AppThemeLaunch">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:windowSplashScreenBackground">#000000</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#000000</item>
+    </style>
+</resources>

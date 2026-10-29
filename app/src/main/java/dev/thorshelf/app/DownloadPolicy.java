@@ -10,6 +10,7 @@ import java.util.Locale;
 public final class DownloadPolicy {
     public static final String HOME = "https://hshop.erista.me/";
     private static final String DS_ARCHIVE_ITEM = "pack-roms-nintendo-ds-eu-usa-jap-rabbits-games";
+    private static final String GBA_ARCHIVE_ITEM = "CentralArquivista-GameBoyAdvance";
     private DownloadPolicy() { }
 
     public static boolean isCatalog(String url) {
@@ -27,18 +28,8 @@ public final class DownloadPolicy {
     /** Separate public DS sources; never extends the hosts trusted with hShop sessions. */
     public static boolean isAllowedNdsDownload(String url) {
         URI uri = parseHttps(url);
-        if (uri == null || uri.getRawFragment() != null) return false;
+        if (uri == null || uri.getRawFragment() != null || !isSafeAssetPath(uri)) return false;
         String path = uri.getPath();
-        if (path == null || path.indexOf('\\') >= 0 || path.contains("//")) return false;
-        for (int index = 0; index < path.length(); index++) {
-            if (Character.isISOControl(path.charAt(index))
-                    || Character.getType(path.charAt(index)) == Character.FORMAT) return false;
-        }
-        for (String segment : path.split("/")) {
-            if (segment.equals(".") || segment.equals("..")) return false;
-        }
-        String rawPath = uri.getRawPath().toLowerCase(Locale.ROOT);
-        if (rawPath.contains("%2f") || rawPath.contains("%5c") || rawPath.contains("%25")) return false;
         String host = uri.getHost().toLowerCase(Locale.ROOT);
         if (host.equals("archive.org") || isArchiveMirror(host)) {
             return ndsArchiveFilename(uri) != null;
@@ -61,6 +52,37 @@ public final class DownloadPolicy {
                 && path.matches("/github-production-release-asset/[^/]+/[^/]+");
     }
 
+    /** Raw GBA cartridges come only from the catalog's pinned Internet Archive item. */
+    public static boolean isAllowedGbaDownload(String url) {
+        return gbaArchiveFilename(url) != null;
+    }
+
+    static String gbaArchiveFilename(String url) {
+        URI uri = parseHttps(url);
+        if (uri == null || uri.getRawFragment() != null || !isSafeAssetPath(uri)) return null;
+        return archiveFilename(uri, GBA_ARCHIVE_ITEM, ".gba");
+    }
+
+    /** Storage mirrors may change; the decoded item filename must remain identical. */
+    static boolean isAllowedGbaRedirect(String source, String destination) {
+        String original = gbaArchiveFilename(source);
+        return original != null && original.equals(gbaArchiveFilename(destination));
+    }
+
+    static boolean isSafeAssetPath(URI uri) {
+        String path = uri.getPath();
+        if (path == null || path.indexOf('\\') >= 0 || path.contains("//")) return false;
+        for (int index = 0; index < path.length(); index++) {
+            if (Character.isISOControl(path.charAt(index))
+                    || Character.getType(path.charAt(index)) == Character.FORMAT) return false;
+        }
+        for (String segment : path.split("/")) {
+            if (segment.equals(".") || segment.equals("..")) return false;
+        }
+        String rawPath = uri.getRawPath().toLowerCase(Locale.ROOT);
+        return !rawPath.contains("%2f") && !rawPath.contains("%5c") && !rawPath.contains("%25");
+    }
+
     /** Archive redirects may change their storage host, never their item or ZIP filename. */
     static boolean isAllowedNdsRedirect(String source, String destination) {
         if (!isAllowedNdsDownload(source) || !isAllowedNdsDownload(destination)) return false;
@@ -75,6 +97,10 @@ public final class DownloadPolicy {
     }
 
     private static String ndsArchiveFilename(URI uri) {
+        return archiveFilename(uri, DS_ARCHIVE_ITEM, ".zip");
+    }
+
+    private static String archiveFilename(URI uri, String item, String extension) {
         if (uri == null || uri.getRawQuery() != null || uri.toString().length() > 2048) return null;
         String host = uri.getHost().toLowerCase(Locale.ROOT);
         String prefix;
@@ -86,10 +112,10 @@ public final class DownloadPolicy {
             prefix = path.substring(0, items) + "/items/";
         }
         else return null;
-        prefix += DS_ARCHIVE_ITEM + "/";
+        prefix += item + "/";
         if (!uri.getRawPath().startsWith(prefix)) return null;
         String filename = uri.getPath().substring(prefix.length());
-        return isNdsShopAssetName(filename) && filename.toLowerCase(Locale.ROOT).endsWith(".zip")
+        return isNdsShopAssetName(filename) && filename.toLowerCase(Locale.ROOT).endsWith(extension)
                 ? filename : null;
     }
 
@@ -113,6 +139,10 @@ public final class DownloadPolicy {
         if (name == null) return false;
         String lower = name.toLowerCase(Locale.ROOT);
         return lower.endsWith(".nds") || lower.endsWith(".zip");
+    }
+
+    public static boolean isGbaContentFile(String name) {
+        return name != null && name.toLowerCase(Locale.ROOT).endsWith(".gba");
     }
 
     private static URI parseHttps(String url) {
@@ -158,6 +188,6 @@ public final class DownloadPolicy {
         String lower = name.toLowerCase(Locale.ROOT);
         return lower.endsWith(".cia") || lower.endsWith(".cci") || lower.endsWith(".cxi")
                 || lower.endsWith(".3ds") || lower.endsWith(".3dsx") || lower.endsWith(".nds")
-                || lower.endsWith(".zip") || lower.endsWith(".7z");
+                || lower.endsWith(".gba") || lower.endsWith(".zip") || lower.endsWith(".7z");
     }
 }

@@ -19,7 +19,6 @@ final class BrowseHomeView extends ScrollView {
     interface Listener { void onOpenCatalog(String url); }
 
     private static final int PEACH = Color.rgb(255, 235, 215);
-    private static final int ORANGE = Color.rgb(245, 136, 33);
     private final Listener listener;
     private final LinearLayout body;
     private boolean wide;
@@ -76,7 +75,7 @@ final class BrowseHomeView extends ScrollView {
             }
             body.addView(row, spaced(-1, -2, compact ? 8 : 10));
         }
-        TextView note = Ui.text(context, "Illustrated picks · Choose a title to find its versions on hShop.", 12, Ui.MUTED);
+        TextView note = Ui.text(context, "Illustrated picks · Choose a title to find its versions on hShop.", 12, Ui.colors(context).MUTED);
         body.addView(note, spaced(-1, -2, 10));
     }
 
@@ -104,14 +103,15 @@ final class BrowseHomeView extends ScrollView {
 
     private View gameTile(String label, String title, int resource) {
         Context context = getContext();
+        AppTheme.Palette colors = Ui.colors(context);
         LinearLayout tile = Ui.column(context);
         Ui.pad(tile, compact ? 5 : 6);
         StateListDrawable background = new StateListDrawable();
-        background.addState(new int[] {android.R.attr.state_focused}, Ui.rounded(context, Color.WHITE, ORANGE));
-        background.addState(new int[] {android.R.attr.state_pressed}, Ui.rounded(context, PEACH, ORANGE));
-        background.addState(new int[] {}, Ui.rounded(context, Color.WHITE, 0));
+        background.addState(new int[] {android.R.attr.state_focused}, Ui.rounded(context, colors.SURFACE, colors.ORANGE));
+        background.addState(new int[] {android.R.attr.state_pressed}, Ui.rounded(context, colors.dark ? colors.SOFT : PEACH, colors.ORANGE));
+        background.addState(new int[] {}, Ui.rounded(context, colors.SURFACE, colors.dark ? colors.BORDER : 0));
         tile.setBackground(background);
-        tile.setElevation(Ui.dp(context, 1));
+        tile.setElevation(colors.oled ? 0 : Ui.dp(context, 1));
         tile.setFocusable(true);
         tile.setClickable(true);
         tile.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
@@ -120,11 +120,11 @@ final class BrowseHomeView extends ScrollView {
         ImageView art = new ShelfImageView(context, wide, compact);
         art.setImageDrawable(GameArtwork.image(context, resource, 280).getDrawable());
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setBackground(Ui.rounded(context, PEACH, 0));
+        art.setBackground(Ui.rounded(context, colors.dark ? colors.SURFACE : PEACH, 0));
         art.setClipToOutline(true);
         art.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         tile.addView(art, new LinearLayout.LayoutParams(-1, -2));
-        TextView name = Ui.text(context, label, 14, Ui.TEXT);
+        TextView name = Ui.text(context, label, 14, Ui.colors(context).TEXT);
         name.setTypeface(null, Typeface.BOLD);
         name.setPadding(Ui.dp(context, 5), Ui.dp(context, compact ? 5 : 9),
                 Ui.dp(context, 5), Ui.dp(context, compact ? 3 : 5));

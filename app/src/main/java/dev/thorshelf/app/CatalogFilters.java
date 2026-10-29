@@ -21,6 +21,11 @@ final class CatalogFilters {
         if (url == null || url.isEmpty()) return "";
         String language = CatalogLanguages.normalize(languageCode);
         String region = CatalogRegions.normalize(regionCode);
+        if (GbaCatalog.isPageUrl(url)) {
+            if (GbaCatalog.isDetailUrl(url)) return url;
+            String result = resetPage ? without(url, "page") : url;
+            return GbaCatalog.withRegion(GbaCatalog.withLanguage(result, language), region);
+        }
         if (NdsCatalog.isPageUrl(url)) {
             if (NdsCatalog.isDetailUrl(url)) return url;
             String result = resetPage ? without(url, "page") : url;
@@ -43,11 +48,11 @@ final class CatalogFilters {
     }
 
     static String selectedLanguage(String url) {
-        return CatalogLanguages.normalize(parameter(url, NdsCatalog.isPageUrl(url) ? "lang" : LANGUAGE));
+        return CatalogLanguages.normalize(parameter(url, isLocalCatalog(url) ? "lang" : LANGUAGE));
     }
 
     static String selectedRegion(String url) {
-        return CatalogRegions.normalize(parameter(url, NdsCatalog.isPageUrl(url) ? "region" : REGION));
+        return CatalogRegions.normalize(parameter(url, isLocalCatalog(url) ? "region" : REGION));
     }
 
     static String sourceUrl(String url) { return without(without(without(url, LANGUAGE), REGION), DIRECTION); }
@@ -58,8 +63,12 @@ final class CatalogFilters {
         if (url == null || url.isEmpty()) return "";
         String result = without(apply(url, language, region, false), DIRECTION);
         boolean filtering = !CatalogLanguages.normalize(language).isEmpty() || !CatalogRegions.normalize(region).isEmpty();
-        return previous && filtering && !NdsCatalog.isPageUrl(result)
+        return previous && filtering && !isLocalCatalog(result)
                 ? append(result, DIRECTION + "=previous") : result;
+    }
+
+    private static boolean isLocalCatalog(String url) {
+        return NdsCatalog.isPageUrl(url) || GbaCatalog.isPageUrl(url);
     }
 
     /** hShop lists geographic subcategories alongside demos; hide unknown locations under a region filter. */

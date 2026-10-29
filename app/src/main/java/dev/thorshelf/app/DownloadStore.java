@@ -49,12 +49,12 @@ public final class DownloadStore {
     /** Returns the Android download ID. Cookies and temporary URLs are never saved by this store. */
     public long enqueue(String url, String fileName, String userAgent, String cookie,
                         String sourcePage, boolean wifiOnly) {
-        return enqueue(url, fileName, userAgent, cookie, sourcePage, wifiOnly, false, "");
+        return enqueue(url, fileName, userAgent, cookie, sourcePage, wifiOnly, GamePlatform.THREE_DS, "", "", -1);
     }
 
     public long enqueue(String url, String fileName, String userAgent, String cookie,
                         String sourcePage, boolean wifiOnly, String artworkUrl) {
-        return enqueue(url, fileName, userAgent, cookie, sourcePage, wifiOnly, false, artworkUrl);
+        return enqueue(url, fileName, userAgent, cookie, sourcePage, wifiOnly, GamePlatform.THREE_DS, artworkUrl, "", -1);
     }
 
     /** Queues DS files without hShop cookies or a browser Referer. */
@@ -66,19 +66,45 @@ public final class DownloadStore {
     /** Keeps optional public artwork separately from the game transfer and its request headers. */
     public long enqueueNds(String url, String fileName, String userAgent,
                            String sourcePage, boolean wifiOnly, String artworkUrl) {
-        return enqueue(url, fileName, userAgent, null, sourcePage, wifiOnly, true, artworkUrl);
+        return enqueue(url, fileName, userAgent, null, sourcePage, wifiOnly, GamePlatform.DS, artworkUrl, "", -1);
+    }
+
+    /** Queues only the exact raw GBA edition and integrity metadata in the bundled catalog. */
+    public long enqueueGba(String url, String fileName, String userAgent, String sourcePage,
+                           boolean wifiOnly, String artworkUrl, String expectedSha1, long expectedSize) {
+        final GbaCatalog.Rom rom;
+        try { rom = GbaCatalog.lookup(sourcePage); }
+        catch (IOException unavailable) {
+            throw new IllegalStateException("The GBA catalog is unavailable. Reopen the catalog and try again.");
+        }
+        if (rom == null || !GbaRomExporter.hasExpectedIdentity(expectedSha1, expectedSize)
+                || !rom.sha1.equalsIgnoreCase(expectedSha1) || rom.sizeBytes != expectedSize
+                || !DownloadPolicy.isAllowedGbaRedirect(rom.downloadUrl, url)) {
+            throw new IllegalArgumentException("The GBA download does not match its catalog edition.");
+        }
+        return enqueue(url, fileName, userAgent, null, sourcePage, wifiOnly, GamePlatform.GBA,
+                artworkUrl, expectedSha1.toLowerCase(Locale.ROOT), expectedSize);
     }
 
     private long enqueue(String url, String fileName, String userAgent, String cookie,
-                         String sourcePage, boolean wifiOnly, boolean nds, String artworkUrl) {
-        if (!(nds ? DownloadPolicy.isAllowedNdsDownload(url) : DownloadPolicy.isAllowedDownload(url))) {
+                         String sourcePage, boolean wifiOnly, GamePlatform platform, String artworkUrl,
+                         String expectedSha1, long expectedSize) {
+        boolean nds = platform == GamePlatform.DS;
+        boolean gba = platform == GamePlatform.GBA;
+        if (!(gba ? DownloadPolicy.isAllowedGbaDownload(url)
+                : nds ? DownloadPolicy.isAllowedNdsDownload(url) : DownloadPolicy.isAllowedDownload(url))) {
             throw new IllegalArgumentException("This download address is not an approved HTTPS source.");
         }
         if (nds && (!DownloadPolicy.isNdsContentFile(fileName == null ? null : fileName.trim())
                 || !DownloadPolicy.isNdsContentFile(GameFilename.clean(fileName)))) {
             throw new IllegalArgumentException("DS downloads must be NDS files or ZIP bundles.");
         }
-        String page = nds ? (NdsCatalog.isDetailUrl(sourcePage) ? sourcePage : NdsCatalog.HOME)
+        if (gba && (!DownloadPolicy.isGbaContentFile(fileName == null ? null : fileName.trim())
+                || !DownloadPolicy.isGbaContentFile(GameFilename.clean(fileName)))) {
+            throw new IllegalArgumentException("GBA downloads must be GBA files.");
+        }
+        String page = gba ? sourcePage
+                : nds ? (NdsCatalog.isDetailUrl(sourcePage) ? sourcePage : NdsCatalog.HOME)
                 : hshopPage(sourcePage);
         synchronized (LOCK) {
             // Reserve the name while holding the same lock as enqueue and persistence. Pending
@@ -89,7 +115,8 @@ public final class DownloadStore {
             try {
                 request = new DownloadManager.Request(Uri.parse(url))
                         .setTitle(name)
-                        .setDescription(nds ? "ThorShelf · Nintendo DS" : "ThorShelf · hShop")
+                        .setDescription(gba ? "ThorShelf · Game Boy Advance"
+                                : nds ? "ThorShelf · Nintendo DS" : "ThorShelf · hShop")
                         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                         .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "ThorShelf/" + name)
                         .setAllowedOverRoaming(false);
@@ -97,8 +124,8 @@ public final class DownloadStore {
                     request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI);
                 }
                 addHeader(request, "User-Agent", userAgent);
-                if (!nds) addHeader(request, "Cookie", cookie);
-                if (!nds && sourcePage != null && !sourcePage.trim().isEmpty()) {
+                if (platform == GamePlatform.THREE_DS) addHeader(request, "Cookie", cookie);
+                if (platform == GamePlatform.THREE_DS && sourcePage != null && !sourcePage.trim().isEmpty()) {
                     addHeader(request, "Referer", page);
                 }
             } catch (RuntimeException ignored) {
@@ -110,7 +137,11 @@ public final class DownloadStore {
             } catch (RuntimeException ignored) {
                 throw new IllegalStateException("Android could not start the download. Check available storage and the download service.");
             }
-            records.add(new TrackedDownload(id, name, page, null, null, artworkUrl));
+            TrackedDownload record = new TrackedDownload(id, name, page, null, null, artworkUrl);
+            record.platform = platform;
+            record.expectedSha1 = expectedSha1;
+            record.expectedSize = expectedSize;
+            records.add(record);
             if (!writeRecords(records)) {
                 try {
                     manager.remove(id);
@@ -296,9 +327,58 @@ public final class DownloadStore {
     }
 
     private static boolean isDsSource(TrackedDownload record) {
-        String name = record.name.toLowerCase(Locale.ROOT);
+        return record.platform == GamePlatform.DS;
+    }
+
+    private static GamePlatform legacyPlatform(String filename, String sourcePage) {
+        String name = filename.toLowerCase(Locale.ROOT);
         return name.endsWith(".nds") || name.endsWith(".zip")
-                && (NdsCatalog.HOME.equals(record.sourcePage) || NdsCatalog.isDetailUrl(record.sourcePage));
+                && (NdsCatalog.HOME.equals(sourcePage) || NdsCatalog.isDetailUrl(sourcePage))
+                ? GamePlatform.DS : GamePlatform.THREE_DS;
+    }
+
+    /** Records GBA output only after its streaming size/hash verification and close succeeded. */
+    boolean markGbaSaved(long id, Uri destination, long verifiedSize, String verifiedSha1) {
+        Uri saved = preparedUri(destination == null ? null : destination.toString());
+        if (saved == null) return false;
+        synchronized (LOCK) {
+            List<TrackedDownload> records = readRecords();
+            for (int i = 0; i < records.size(); i++) {
+                TrackedDownload record = records.get(i);
+                if (record.id != id) continue;
+                if (record.platform != GamePlatform.GBA
+                        || !GbaRomExporter.hasExpectedIdentity(record.expectedSha1, record.expectedSize)
+                        || record.expectedSize != verifiedSize || !record.expectedSha1.equalsIgnoreCase(verifiedSha1)) return false;
+                Uri original = successfulDownloadUri(id);
+                if (original == null || original.equals(saved)) return false;
+                TrackedDownload updated = new TrackedDownload(record, record.preparedDestination,
+                        record.savedDsDestination, record.artworkUrl);
+                updated.savedGbaDestination = saved;
+                records.set(i, updated);
+                if (writeRecords(records)) return true;
+                records.set(i, record);
+                writeRecords(records);
+                return false;
+            }
+            return false;
+        }
+    }
+
+    /** Returns a saved GBA copy only while it remains readable and nonempty. */
+    public Uri savedGbaUri(long id) {
+        synchronized (LOCK) {
+            for (TrackedDownload record : readRecords()) {
+                if (record.id != id) continue;
+                Uri saved = record.savedGbaDestination;
+                return record.platform == GamePlatform.GBA && saved != null && hasReadableContent(saved) ? saved : null;
+            }
+            return null;
+        }
+    }
+
+    public Uri savedRomUri(long id) {
+        Uri gba = savedGbaUri(id);
+        return gba != null ? gba : savedDsUri(id);
     }
 
     /** Persists an attempt or its result so later refreshes never retry a failure in a loop. */
@@ -541,6 +621,10 @@ public final class DownloadStore {
                 tracked.requiresInstall = record.optBoolean("requiresInstall", true);
                 tracked.preparedSize = record.optLong("preparedSize", -1);
                 tracked.preparedDigest = record.optString("preparedDigest", "");
+                if (record.has("platform")) tracked.platform = GamePlatform.fromId(record.optString("platform", ""));
+                tracked.expectedSha1 = record.optString("expectedSha1", "").toLowerCase(Locale.ROOT);
+                tracked.expectedSize = record.optLong("expectedSize", -1);
+                tracked.savedGbaDestination = preparedUri(record.optString("savedGbaDestination", null));
                 records.add(tracked);
             }
         } catch (JSONException | ClassCastException ignored) {
@@ -557,6 +641,14 @@ public final class DownloadStore {
                 object.put("id", record.id);
                 object.put("name", record.name);
                 object.put("sourcePage", record.sourcePage);
+                object.put("platform", record.platform.id);
+                if (record.platform == GamePlatform.GBA) {
+                    object.put("expectedSha1", record.expectedSha1);
+                    object.put("expectedSize", record.expectedSize);
+                    if (record.savedGbaDestination != null) {
+                        object.put("savedGbaDestination", record.savedGbaDestination.toString());
+                    }
+                }
                 if (!record.artworkUrl.isEmpty()) {
                     object.put("artworkUrl", record.artworkUrl);
                 }
@@ -641,6 +733,7 @@ public final class DownloadStore {
     }
 
     private static String catalogPage(String value) {
+        if (GbaCatalog.isDetailUrl(value) || GbaCatalog.HOME.equals(value)) return value;
         if (NdsCatalog.isDetailUrl(value) || NdsCatalog.HOME.equals(value)) return value;
         return hshopPage(value);
     }
@@ -711,6 +804,10 @@ public final class DownloadStore {
         final Uri preparedDestination;
         final Uri savedDsDestination;
         final String artworkUrl;
+        GamePlatform platform;
+        String expectedSha1 = "";
+        long expectedSize = -1;
+        Uri savedGbaDestination;
         boolean completionAttempted;
         boolean originalDeleted;
         boolean requiresInstall = true;
@@ -726,6 +823,10 @@ public final class DownloadStore {
             preparedSize = other.preparedSize;
             preparedDigest = other.preparedDigest;
             completionStatus = other.completionStatus;
+            platform = other.platform;
+            expectedSha1 = other.expectedSha1;
+            expectedSize = other.expectedSize;
+            savedGbaDestination = other.savedGbaDestination;
         }
 
         TrackedDownload(long id, String name, String sourcePage, Uri preparedDestination, Uri savedDsDestination,
@@ -736,6 +837,7 @@ public final class DownloadStore {
             this.preparedDestination = preparedDestination;
             this.savedDsDestination = savedDsDestination;
             this.artworkUrl = ArtworkPolicy.isAllowed(artworkUrl) ? artworkUrl : "";
+            this.platform = legacyPlatform(name, sourcePage);
         }
     }
 
@@ -748,6 +850,12 @@ public final class DownloadStore {
         public final String displayName;
         public final String sourcePage;
         public final String artworkUrl;
+        public final GamePlatform platform;
+        public final String expectedSha1;
+        public final long expectedSize;
+        public final Uri savedGbaDestination;
+        /** The platform's saved raw ROM, while retaining savedDsDestination for older callers. */
+        public final Uri savedRomDestination;
         /** Saved export metadata; use savedDsUri before opening to verify the document is available. */
         public final Uri savedDsDestination;
         public final Uri preparedDestination;
@@ -768,6 +876,12 @@ public final class DownloadStore {
             this.displayName = GameFilename.clean(record.name);
             this.sourcePage = record.sourcePage;
             this.artworkUrl = record.artworkUrl;
+            this.platform = record.platform;
+            this.expectedSha1 = record.expectedSha1;
+            this.expectedSize = record.expectedSize;
+            this.savedGbaDestination = record.savedGbaDestination;
+            this.savedRomDestination = record.platform == GamePlatform.GBA ? record.savedGbaDestination
+                    : record.platform == GamePlatform.DS ? record.savedDsDestination : null;
             this.savedDsDestination = record.savedDsDestination;
             this.preparedDestination = record.preparedDestination;
             this.originalDeleted = record.originalDeleted;

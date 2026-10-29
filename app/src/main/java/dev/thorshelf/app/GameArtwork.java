@@ -52,6 +52,12 @@ final class GameArtwork {
             Color.rgb(155, 78, 24), Color.rgb(61, 105, 64), Color.rgb(57, 87, 126),
             Color.rgb(105, 76, 130), Color.rgb(135, 98, 37)
     };
+    private static final int[] DARK_TILE_COLORS = {
+            0xFF382C21, 0xFF25362B, 0xFF263341, 0xFF342B3E, 0xFF383124
+    };
+    private static final int[] DARK_INK_COLORS = {
+            0xFFF4BC87, 0xFFA4D5AB, 0xFFA9C9ED, 0xFFCAB6E3, 0xFFE5CF9A
+    };
 
     private GameArtwork() { }
 
@@ -69,8 +75,11 @@ final class GameArtwork {
             initial.setTextSize(Math.min(28, Math.max(16, sizeDp / 3)));
             initial.setTypeface(null, Typeface.BOLD);
             initial.setGravity(Gravity.CENTER);
-            initial.setTextColor(INK_COLORS[color]);
-            initial.setBackground(Ui.rounded(context, TILE_COLORS[color], 0));
+            AppTheme.Palette colors = Ui.colors(context);
+            initial.setTextColor(colors.dark ? DARK_INK_COLORS[color] : INK_COLORS[color]);
+            int background = colors.oled ? colors.SURFACE
+                    : colors.dark ? DARK_TILE_COLORS[color] : TILE_COLORS[color];
+            initial.setBackground(Ui.rounded(context, background, colors.oled ? colors.BORDER : 0));
             view = initial;
         }
         view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -201,7 +210,8 @@ final class GameArtwork {
         ImageView image = new ImageView(context);
         image.setScaleType(ImageView.ScaleType.CENTER_CROP);
         image.setImageBitmap(bitmap(context, resource, Ui.dp(context, targetDp)));
-        image.setBackground(Ui.rounded(context, Color.rgb(255, 238, 219), 0));
+        AppTheme.Palette colors = Ui.colors(context);
+        image.setBackground(Ui.rounded(context, colors.dark ? colors.SURFACE : Color.rgb(255, 238, 219), 0));
         image.setClipToOutline(true);
         image.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         return image;
@@ -209,7 +219,7 @@ final class GameArtwork {
 
     static String displayTitle(String filename) {
         if (filename == null || filename.trim().isEmpty()) return "Game";
-        String clean = GameFilename.clean(filename).replaceFirst("(?i)\\.(cia|cci|cxi|3ds|3dsx|nds|zip|7z)$", "");
+        String clean = GameFilename.clean(filename).replaceFirst("(?i)\\.(cia|cci|cxi|3ds|3dsx|nds|gba|zip|7z)$", "");
         return clean.isEmpty() ? "Game" : clean;
     }
 

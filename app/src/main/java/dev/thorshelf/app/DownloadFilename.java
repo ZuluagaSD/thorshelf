@@ -29,11 +29,28 @@ public final class DownloadFilename {
         return archiveName == null || GameFilename.clean(archiveName).equals(name) ? name : null;
     }
 
+    /** GBA response metadata must identify the exact raw cartridge requested from the catalog. */
+    public static String resolveGba(String url, String contentDisposition, String mimeType) {
+        String expected = DownloadPolicy.gbaArchiveFilename(url);
+        if (expected == null || isDocumentResponse(mimeType)) return null;
+        String name = responseFilename(url, contentDisposition);
+        // Compare before cleaning: different editions or long names can clean to the same name.
+        if (!expected.equals(name) || !DownloadPolicy.isGbaContentFile(name)) return null;
+        return GameFilename.clean(name);
+    }
+
     private static String resolveFilename(String url, String contentDisposition, String mimeType,
                                           boolean nds) {
         if (isDocumentResponse(mimeType)) return null;
-        if (contentDisposition != null && contentDisposition.length() > MAX_HEADER_LENGTH) return null;
+        String name = responseFilename(url, contentDisposition);
+        // Check before sanitizing: safeFilename's generic default must not invent a CIA type.
+        if (name == null || !isContentFile(name.trim(), nds)) return null;
+        String safe = GameFilename.clean(name);
+        return isContentFile(safe, nds) ? safe : null;
+    }
 
+    private static String responseFilename(String url, String contentDisposition) {
+        if (contentDisposition != null && contentDisposition.length() > MAX_HEADER_LENGTH) return null;
         HeaderNames names = parseHeader(contentDisposition);
         if (names.ambiguous) return null;
         String name = names.extended != null ? names.extended : names.plain;
@@ -43,10 +60,7 @@ public final class DownloadFilename {
                 name = decodePercent(path.substring(path.lastIndexOf('/') + 1), StandardCharsets.UTF_8);
             }
         }
-        // Check before sanitizing: safeFilename's generic default must not invent a CIA type.
-        if (name == null || !isContentFile(name.trim(), nds)) return null;
-        String safe = GameFilename.clean(name);
-        return isContentFile(safe, nds) ? safe : null;
+        return name;
     }
 
     private static boolean isContentFile(String name, boolean nds) {

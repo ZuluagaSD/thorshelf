@@ -215,6 +215,165 @@ public class ExportServiceTest {
         assertReadOnlyGrant(destination);
     }
 
+    @Test public void gbaExportVerifiesPersistsSavedCopyAndKeepsOriginal() throws Exception {
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes);
+        Uri destination = newDestination("gba-complete");
+        persistGrant(destination);
+        launchGba(destination);
+        awaitFinished();
+
+        assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export complete:"));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(documents.files.get(destination).toPath()));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        DownloadStore store = new DownloadStore(app);
+        assertEquals(destination, store.savedGbaUri(downloadId));
+        assertEquals(destination, store.savedRomUri(downloadId));
+        assertEquals(destination, store.list().get(0).savedRomDestination);
+        assertNull(store.list().get(0).savedDsDestination);
+        assertFalse(store.list().get(0).isPrepared());
+        assertThrows(IllegalStateException.class, () -> store.deletePreparedOriginal(downloadId));
+        assertReadOnlyGrant(destination);
+    }
+
+    @Test public void gbaChecksumFailureCleansPartialCopyAndCanRetry() throws Exception {
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes.length, "f".repeat(40));
+        Uri destination = newDestination("gba-checksum-failed");
+        File output = documents.files.get(destination);
+        persistGrant(destination);
+        launchGba(destination);
+        awaitFinished();
+        assertTrue(ExportService.status(app), ExportService.status(app).contains("checksum"));
+        assertFalse(output.exists());
+        assertNull(new DownloadStore(app).savedGbaUri(downloadId));
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+
+        service.destroy();
+        service = null;
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes);
+        Uri retry = newDestination("gba-retried");
+        launchGba(retry);
+        awaitFinished();
+        assertEquals(retry, new DownloadStore(app).savedGbaUri(downloadId));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(documents.files.get(retry).toPath()));
+    }
+
+    @Test public void gbaLengthFailureCleansDestinationAndKeepsOriginal() throws Exception {
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes.length + 1, GbaTestData.sha1(sourceBytes));
+        Uri destination = newDestination("gba-length-failed");
+        launchGba(destination);
+        awaitFinished();
+        assertTrue(ExportService.status(app), ExportService.status(app).contains("size"));
+        assertFalse(documents.files.get(destination).exists());
+        assertNull(new DownloadStore(app).savedGbaUri(downloadId));
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void gbaExportRejectsDsSourceEvenWithGbaCallerFilename() throws Exception {
+        replaceSource("synthetic.nds", sourceBytes);
+        Uri destination = newDestination("gba-wrong-platform");
+        launchGba(destination);
+        awaitFinished();
+        assertTrue(ExportService.status(app), ExportService.status(app).contains("completed .gba"));
+        assertFalse(documents.files.get(destination).exists());
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void failedGbaOutputCloseNeverRecordsSavedCopyOrRetainsGrant() throws Exception {
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes);
+        Uri destination = newDestination("gba-close-failed");
+        File output = documents.files.get(destination);
+        persistGrant(destination);
+        shadowOf(app.getContentResolver()).registerOutputStreamSupplier(destination, () -> {
+            try {
+                return new FilterOutputStream(Files.newOutputStream(output.toPath())) {
+                    @Override public void close() throws IOException {
+                        super.close();
+                        throw new IOException("Synthetic provider commit failure");
+                    }
+                };
+            } catch (IOException error) { throw new IllegalStateException(error); }
+        });
+        launchGba(destination);
+        awaitFinished();
+        assertTrue(ExportService.status(app), ExportService.status(app).startsWith("Export failed."));
+        assertNull(new DownloadStore(app).list().get(0).savedGbaDestination);
+        assertFalse(output.exists());
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
+    }
+
+    @Test public void failedGbaWriteRemovesOnlyItsPartialDocument() throws Exception {
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes);
+        Uri destination = newDestination("gba-write-failed");
+        File output = documents.files.get(destination);
+        shadowOf(app.getContentResolver()).registerOutputStreamSupplier(destination, () -> {
+            try {
+                return new FilterOutputStream(Files.newOutputStream(output.toPath())) {
+                    @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+                        out.write(bytes, offset, Math.min(32, length));
+                        throw new IOException("Synthetic full destination");
+                    }
+                };
+            } catch (IOException error) { throw new IllegalStateException(error); }
+        });
+        launchGba(destination);
+        awaitFinished();
+        assertFalse(output.exists());
+        assertNull(new DownloadStore(app).list().get(0).savedGbaDestination);
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+    }
+
+    @Test public void gbaExportPreservesExistingDestination() throws Exception {
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes);
+        Uri destination = newDestination("gba-existing");
+        File output = documents.files.get(destination);
+        byte[] existing = {9, 8, 7};
+        Files.write(output.toPath(), existing);
+        launchGba(destination);
+        awaitFinished();
+        assertArrayEquals(existing, Files.readAllBytes(output.toPath()));
+        assertFalse(documents.deleted.containsKey(destination));
+        assertNull(new DownloadStore(app).savedGbaUri(downloadId));
+    }
+
+    @Test public void cancelledGbaExportDeletesPartialDocumentAndKeepsOriginal() throws Exception {
+        GbaTestData.markSynthetic(app, downloadId, sourceBytes);
+        Uri destination = newDestination("gba-cancelled");
+        File output = documents.files.get(destination);
+        persistGrant(destination);
+        CountDownLatch reading = new CountDownLatch(1);
+        unblockCopy = new CountDownLatch(1);
+        shadowOf(app.getContentResolver()).registerInputStreamSupplier(sourceUri, () -> {
+            try {
+                return new FilterInputStream(Files.newInputStream(sourceFile.toPath())) {
+                    int reads;
+                    @Override public int read(byte[] buffer, int offset, int length) throws IOException {
+                        if (++reads > 1) {
+                            reading.countDown();
+                            try { unblockCopy.await(5, TimeUnit.SECONDS); }
+                            catch (InterruptedException error) {
+                                Thread.currentThread().interrupt();
+                                throw new IOException(error);
+                            }
+                        }
+                        return super.read(buffer, offset, length);
+                    }
+                };
+            } catch (IOException error) { throw new IllegalStateException(error); }
+        });
+        launchGba(destination);
+        assertTrue(reading.await(5, TimeUnit.SECONDS));
+        assertTrue(output.length() > 0);
+        service.destroy();
+        service = null;
+        awaitFinished();
+        assertFalse(output.exists());
+        assertNull(new DownloadStore(app).list().get(0).savedGbaDestination);
+        assertArrayEquals(sourceBytes, Files.readAllBytes(sourceFile.toPath()));
+        assertTrue(app.getContentResolver().getPersistedUriPermissions().isEmpty());
+    }
+
     @Test public void failedDsOutputCloseDoesNotRecordDestinationOrRetainGrant() throws Exception {
         replaceSource("synthetic.nds", sourceBytes);
         Uri destination = newDestination("nds-close-failed");
@@ -428,6 +587,11 @@ public class ExportServiceTest {
 
     private void launchNds(Uri destination, String name) {
         ExportService.startNds(app, downloadId, destination, name);
+        launchPending();
+    }
+
+    private void launchGba(Uri destination) {
+        ExportService.startGba(app, downloadId, destination, "Synthetic.gba");
         launchPending();
     }
 

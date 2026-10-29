@@ -1,18 +1,97 @@
 <resources>
-    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+    <!-- Keep startup dark before preferences can be read, even when Android itself uses Light.
+         MainActivity replaces this launch-only theme before creating any content. -->
+    <style name="AppTheme" parent="AppThemeLaunch" />
+
+    <style name="AppThemeLaunch" parent="AppThemeOled">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+
+    <style name="AppThemeLight" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:colorAccent">#C45100</item>
         <item name="android:colorControlActivated">#C45100</item>
         <item name="android:colorControlHighlight">#30F58821</item>
         <item name="android:textColorPrimary">#2D2827</item>
         <item name="android:textColorSecondary">#6F6862</item>
+        <item name="android:textColorHint">#6F6862</item>
+        <item name="android:colorControlNormal">#6F6862</item>
+        <item name="android:colorBackground">#FAF8F2</item>
+        <item name="android:colorBackgroundFloating">#FFFFFF</item>
+        <item name="android:alertDialogTheme">@style/AppDialogLight</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowBackground">#FAF8F2</item>
         <item name="android:statusBarColor">#FAF8F2</item>
         <item name="android:navigationBarColor">#FAF8F2</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <item name="android:forceDarkAllowed">false</item>
+    </style>
+
+    <style name="AppThemeDark" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">#FFA64D</item>
+        <item name="android:colorControlActivated">#FFA64D</item>
+        <item name="android:colorControlNormal">#BEB2A9</item>
+        <item name="android:colorControlHighlight">#40FFA64D</item>
+        <item name="android:textColorPrimary">#F4EEE8</item>
+        <item name="android:textColorSecondary">#BEB2A9</item>
+        <item name="android:textColorHint">#BEB2A9</item>
+        <item name="android:colorBackground">#141312</item>
+        <item name="android:colorBackgroundFloating">#211E1C</item>
+        <item name="android:alertDialogTheme">@style/AppDialogDark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#141312</item>
+        <item name="android:statusBarColor">#141312</item>
+        <item name="android:navigationBarColor">#141312</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+
+    <style name="AppThemeOled" parent="AppThemeDark">
+        <item name="android:colorBackground">#000000</item>
+        <item name="android:colorBackgroundFloating">#000000</item>
+        <item name="android:alertDialogTheme">@style/AppDialogOled</item>
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+    </style>
+
+    <style name="AppDialogLight" parent="android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">#C45100</item>
+        <item name="android:colorControlActivated">#C45100</item>
+        <item name="android:colorControlNormal">#6F6862</item>
+        <item name="android:colorControlHighlight">#30F58821</item>
+        <item name="android:textColorPrimary">#2D2827</item>
+        <item name="android:textColorSecondary">#6F6862</item>
+        <item name="android:colorBackground">#FFFFFF</item>
+        <item name="android:colorBackgroundFloating">#FFFFFF</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+
+    <style name="AppDialogDark" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">#FFA64D</item>
+        <item name="android:colorControlActivated">#FFA64D</item>
+        <item name="android:colorControlNormal">#BEB2A9</item>
+        <item name="android:colorControlHighlight">#40FFA64D</item>
+        <item name="android:textColorPrimary">#F4EEE8</item>
+        <item name="android:textColorSecondary">#BEB2A9</item>
+        <item name="android:colorBackground">#211E1C</item>
+        <item name="android:colorBackgroundFloating">#211E1C</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+
+    <style name="AppDialogOled" parent="AppDialogDark">
+        <item name="android:colorBackground">#000000</item>
+        <item name="android:colorBackgroundFloating">#000000</item>
     </style>
 </resources>

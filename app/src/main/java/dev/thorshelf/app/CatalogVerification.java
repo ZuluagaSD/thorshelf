@@ -44,12 +44,13 @@ final class CatalogVerification {
         this.pageUrl = pageUrl;
         this.listener = listener;
         LinearLayout body = Ui.column(activity);
+        body.setBackgroundColor(Ui.colors(activity).SURFACE);
         Ui.pad(body, 12);
         body.addView(Ui.text(activity, download
                 ? "Complete hShop’s check below. Your download will continue automatically."
-                : "Complete hShop’s check below to return to your shelf.", 14, Ui.MUTED));
+                : "Complete hShop’s check below to return to your shelf.", 14, Ui.colors(activity).MUTED));
         webView = new WebView(activity);
-        webView.setBackgroundColor(Ui.BG);
+        webView.setBackgroundColor(Ui.colors(activity).BG);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);

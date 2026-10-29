@@ -29,12 +29,13 @@ final class CompanionPresentation extends Presentation {
     private List<DownloadStore.Entry> entries = Collections.emptyList();
 
     CompanionPresentation(Context context, Display display) {
-        super(context, display, R.style.AppTheme);
+        super(context, display, AppTheme.style(context));
     }
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         Context c = getContext();
+        AppTheme.applyWindow(getWindow(), c);
         boolean compact = c.getResources().getConfiguration().screenHeightDp < 440;
         ScrollView scroll = new ScrollView(c);
         scroll.setFillViewport(true);
@@ -46,20 +47,20 @@ final class CompanionPresentation extends Presentation {
 
         LinearLayout brand = Ui.row(c);
         brand.addView(Ui.logo(c, 25), new LinearLayout.LayoutParams(Ui.dp(c, 25), Ui.dp(c, 25)));
-        TextView name = Ui.text(c, "ThorShelf", 18, Ui.TEXT);
+        TextView name = Ui.text(c, "ThorShelf", 18, Ui.colors(c).TEXT);
         name.setTypeface(null, Typeface.BOLD);
         LinearLayout.LayoutParams brandName = new LinearLayout.LayoutParams(-2, -2);
         brandName.setMargins(Ui.dp(c, 8), 0, Ui.dp(c, 12), 0);
         brand.addView(name, brandName);
         View separator = new View(c);
-        separator.setBackgroundColor(Ui.BORDER);
+        separator.setBackgroundColor(Ui.colors(c).BORDER);
         brand.addView(separator, new LinearLayout.LayoutParams(Ui.dp(c, 1), Ui.dp(c, 20)));
-        TextView companion = Ui.text(c, "Companion", 13, Ui.MUTED);
+        TextView companion = Ui.text(c, "Companion", 13, Ui.colors(c).MUTED);
         companion.setPadding(Ui.dp(c, 12), 0, 0, 0);
         brand.addView(companion);
         body.addView(brand, new LinearLayout.LayoutParams(-1, -2));
 
-        pageView = centered(c, "On main screen: " + page, 15, Ui.TEXT);
+        pageView = centered(c, "On main screen: " + page, 15, Ui.colors(c).TEXT);
         pageView.setTypeface(null, Typeface.BOLD);
         pageView.setMaxLines(3);
         pageView.setEllipsize(TextUtils.TruncateAt.END);
@@ -74,10 +75,10 @@ final class CompanionPresentation extends Presentation {
         parcelSize.topMargin = Ui.dp(c, compact ? 4 : 10);
         body.addView(parcelView, parcelSize);
 
-        headlineView = centered(c, "Your next adventure awaits", compact ? 21 : 25, Ui.TEXT);
+        headlineView = centered(c, "Your next adventure awaits", compact ? 21 : 25, Ui.colors(c).TEXT);
         headlineView.setTypeface(null, Typeface.BOLD);
         body.addView(headlineView, new LinearLayout.LayoutParams(-1, -2));
-        detailView = centered(c, "", 14, Ui.MUTED);
+        detailView = centered(c, "", 14, Ui.colors(c).MUTED);
         body.addView(detailView, new LinearLayout.LayoutParams(-1, -2));
 
         progressRow = Ui.row(c);
@@ -85,7 +86,7 @@ final class CompanionPresentation extends Presentation {
         progressView.setMax(100);
         Ui.styleProgress(progressView);
         progressRow.addView(progressView, new LinearLayout.LayoutParams(0, Ui.dp(c, 12), 1));
-        percentView = Ui.text(c, "", 14, Ui.TEXT);
+        percentView = Ui.text(c, "", 14, Ui.colors(c).TEXT);
         percentView.setTypeface(null, Typeface.BOLD);
         percentView.setPadding(Ui.dp(c, 12), 0, 0, 0);
         progressRow.addView(percentView);
@@ -94,22 +95,22 @@ final class CompanionPresentation extends Presentation {
         body.addView(progressRow, progressSize);
 
         View divider = new View(c);
-        divider.setBackgroundColor(Ui.BORDER);
+        divider.setBackgroundColor(Ui.colors(c).BORDER);
         LinearLayout.LayoutParams dividerSize = new LinearLayout.LayoutParams(-1, Ui.dp(c, 1));
         dividerSize.setMargins(0, Ui.dp(c, 8), 0, Ui.dp(c, 8));
         body.addView(divider, dividerSize);
 
         LinearLayout counters = Ui.row(c);
-        downloadingView = centered(c, "No downloads", 13, Ui.SUCCESS);
-        preparingView = centered(c, "Ready when you are", 13, Ui.SUCCESS);
+        downloadingView = centered(c, "No downloads", 13, Ui.colors(c).SUCCESS);
+        preparingView = centered(c, "Ready when you are", 13, Ui.colors(c).SUCCESS);
         Ui.weighted(counters, downloadingView);
         View counterDivider = new View(c);
-        counterDivider.setBackgroundColor(Ui.BORDER);
+        counterDivider.setBackgroundColor(Ui.colors(c).BORDER);
         counters.addView(counterDivider, new LinearLayout.LayoutParams(Ui.dp(c, 1), Ui.dp(c, 20)));
         Ui.weighted(counters, preparingView);
         body.addView(counters, new LinearLayout.LayoutParams(-1, -2));
 
-        queueView = centered(c, queue, 12, Ui.MUTED);
+        queueView = centered(c, queue, 12, Ui.colors(c).MUTED);
         body.addView(queueView, new LinearLayout.LayoutParams(-1, -2));
         setContentView(scroll);
         render();

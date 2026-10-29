@@ -58,6 +58,8 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private static final int CHANGE_PREPARATION_FOLDER = 44;
     private static final int SAVE_NDS_DOCUMENT = 45;
     private static final int CHANGE_NDS_FOLDER = 46;
+    private static final int SAVE_GBA_DOCUMENT = 47;
+    private static final int CHANGE_GBA_FOLDER = 48;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService downloadQueries = Executors.newSingleThreadExecutor();
     private final ExecutorService artworkMetadataQueries = Executors.newSingleThreadExecutor();
@@ -73,6 +75,8 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     CatalogClient catalogClient = catalogClientFactory.get();
     static java.util.function.Supplier<NdsCatalogClient> ndsCatalogClientFactory = NdsCatalogClient::new;
     NdsCatalogClient ndsCatalogClient = ndsCatalogClientFactory.get();
+    static java.util.function.Supplier<GbaCatalogClient> gbaCatalogClientFactory = GbaCatalogClient::new;
+    GbaCatalogClient gbaCatalogClient = gbaCatalogClientFactory.get();
     private final ExecutorService catalogQueries = Executors.newFixedThreadPool(2);
     private final ArrayList<String> catalogHistory = new ArrayList<>();
     private final android.util.LruCache<String, CatalogPage> catalogCache = new android.util.LruCache<>(8);
@@ -87,12 +91,12 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private TextView downloadSummary, exportStatus, displayStatus;
     private TextView downloadBadge, wifiStatus;
     private BrowseHomeView browseHome;
-    private ScrollView ndsHome;
-    private Button threeDsButton, ndsButton, languageButton, regionButton, emulatorButton;
+    private ScrollView ndsHome, gbaHome;
+    private Button threeDsButton, ndsButton, gbaButton, languageButton, regionButton, emulatorButton;
     private AlertDialog filterDialog;
     private String catalogLanguage = "";
     private String catalogRegion = "";
-    private boolean ndsMode;
+    private GamePlatform platform = GamePlatform.THREE_DS;
     private LinearLayout catalogPanel;
     private boolean showingShelf = true;
     private List<DownloadStore.Entry> latestEntries = new ArrayList<>();
@@ -106,12 +110,15 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private String renderedRows = "";
     private int tab = 0;
     private long folderDownloadId = -1;
-    private long ndsExportId = -1;
-    private String ndsExportName = "";
+    private long romExportId = -1;
+    private String romExportName = "";
     private TextView gamesFolderStatus;
     private Button changeGamesFolder;
     private TextView dsGamesFolderStatus;
     private Button changeDsGamesFolder;
+    private TextView gbaGamesFolderStatus;
+    private Button changeGbaGamesFolder;
+    private GamePlatform romExportPlatform = GamePlatform.DS;
     private boolean resumed;
     private boolean queryingDownloads;
     private final Runnable refresh = new Runnable() {
@@ -123,9 +130,12 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     };
 
     @Override public void onCreate(Bundle state) {
+        AppTheme.apply(this);
         super.onCreate(state);
         preferences = getSharedPreferences("settings", MODE_PRIVATE);
-        ndsMode = preferences.getBoolean("ndsMode", false);
+        platform = preferences.contains("platform") ? GamePlatform.fromId(preferences.getString("platform", "3ds"))
+                : preferences.getBoolean("ndsMode", false) ? GamePlatform.DS : GamePlatform.THREE_DS;
+        preferences.edit().putString("platform", platform.id).apply();
         catalogLanguage = CatalogLanguages.normalize(preferences.getString("catalogLanguage", ""));
         catalogRegion = CatalogRegions.normalize(preferences.getString("catalogRegion", ""));
         downloads = new DownloadStore(this);
@@ -133,9 +143,11 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         if (state != null) {
             sourcePage = state.getString("sourcePage", DownloadPolicy.HOME);
             folderDownloadId = state.getLong("folderDownloadId", -1);
-            ndsExportId = state.getLong("ndsExportId", -1);
-            ndsExportName = state.getString("ndsExportName", "");
-            ndsMode = state.getBoolean("ndsMode", ndsMode);
+            romExportId = state.getLong("romExportId", state.getLong("ndsExportId", -1));
+            romExportName = state.getString("romExportName", state.getString("ndsExportName", ""));
+            platform = state.containsKey("platform") ? GamePlatform.fromId(state.getString("platform"))
+                    : state.getBoolean("ndsMode", platform == GamePlatform.DS) ? GamePlatform.DS : GamePlatform.THREE_DS;
+            romExportPlatform = "gba".equals(state.getString("romExportPlatform")) ? GamePlatform.GBA : GamePlatform.DS;
             catalogLanguage = CatalogLanguages.normalize(state.getString("catalogLanguage", catalogLanguage));
             catalogRegion = CatalogRegions.normalize(state.getString("catalogRegion", catalogRegion));
             ArrayList<String> history = state.getStringArrayList("catalogHistory");
@@ -179,7 +191,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         setContentView(root);
         LinearLayout heading = Ui.row(this);
         heading.setPadding(Ui.dp(this, 18), Ui.dp(this, 8), Ui.dp(this, 18), Ui.dp(this, 8));
-        heading.setBackgroundColor(Ui.BG);
+        heading.setBackgroundColor(Ui.colors(MainActivity.this).BG);
         LinearLayout brand = Ui.row(this);
         brand.addView(Ui.logo(this, 34));
         TextView name = Ui.heading(this, "ThorShelf");
@@ -189,7 +201,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         heading.addView(brand, new LinearLayout.LayoutParams(wideLayout() ? -2 : 0, -2, wideLayout() ? 0 : 1));
         LinearLayout tabs = Ui.row(this);
         Ui.pad(tabs, 3);
-        tabs.setBackground(Ui.rounded(this, Ui.SOFT, Ui.BORDER, 28));
+        tabs.setBackground(Ui.rounded(this, Ui.colors(MainActivity.this).SOFT, Ui.colors(MainActivity.this).BORDER, 28));
         String[] names = {"Browse", "Downloads", "Settings"};
         for (int i = 0; i < names.length; i++) {
             final int index = i;
@@ -200,7 +212,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             tabButtons.add(button);
             tabs.addView(button, new LinearLayout.LayoutParams(0, -2, 1));
         }
-        downloadBadge = Ui.text(this, "", 12, Ui.ACCENT);
+        downloadBadge = Ui.text(this, "", 12, Ui.colors(MainActivity.this).ACCENT);
         downloadBadge.setGravity(Gravity.CENTER);
         downloadBadge.setMinWidth(Ui.dp(this, 24));
         downloadBadge.setContentDescription("Active downloads");
@@ -212,7 +224,8 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         }
         heading.addView(downloadBadge);
         emulatorButton = Ui.button(this, "Azahar ↗", () -> {
-            if (ndsMode) melonDsHelp();
+            if (platform == GamePlatform.DS) melonDsHelp();
+            else if (platform == GamePlatform.GBA) gbaHelp();
             else azaharHelp();
         });
         heading.addView(emulatorButton);
@@ -222,7 +235,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             tp.setMargins(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 6));
             root.addView(tabs, tp);
         }
-        View rule = new View(this); rule.setBackgroundColor(Ui.BORDER);
+        View rule = new View(this); rule.setBackgroundColor(Ui.colors(MainActivity.this).BORDER);
         root.addView(rule, new LinearLayout.LayoutParams(-1, Ui.dp(this, 1)));
         content = new FrameLayout(this);
         root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -232,10 +245,10 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         content.addView(settingsPanel, new FrameLayout.LayoutParams(-1, -1));
         TextView hints = Ui.text(this, wideLayout()
                 ? "Ⓐ  Select     Ⓑ  Back          L / R  Tabs          Ⓨ  Search"
-                : "Ⓐ Select    Ⓑ Back    L / R Tabs    Ⓨ Search", 12, Ui.MUTED);
+                : "Ⓐ Select    Ⓑ Back    L / R Tabs    Ⓨ Search", 12, Ui.colors(MainActivity.this).MUTED);
         hints.setGravity(Gravity.CENTER);
         hints.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
-        hints.setBackgroundColor(Ui.BG);
+        hints.setBackgroundColor(Ui.colors(MainActivity.this).BG);
         root.addView(hints);
     }
 
@@ -245,13 +258,13 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         searchRow.setPadding(Ui.dp(this, 18), Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 10));
         search = new EditText(this);
         search.setSingleLine(true);
-        search.setTextSize(15); search.setTextColor(Ui.TEXT); search.setHintTextColor(Ui.MUTED);
+        search.setTextSize(15); search.setTextColor(Ui.colors(MainActivity.this).TEXT); search.setHintTextColor(Ui.colors(MainActivity.this).MUTED);
         search.setHint("Search 3DS games"); search.setContentDescription("Search Nintendo 3DS games");
         search.setPadding(Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 10));
         search.setMinHeight(Ui.dp(this, 48));
-        search.setBackground(Ui.rounded(this, Ui.SURFACE, Ui.BORDER, 28));
+        search.setBackground(Ui.rounded(this, Ui.colors(MainActivity.this).SURFACE, Ui.colors(MainActivity.this).BORDER, 28));
         search.setOnFocusChangeListener((v, focused) ->
-                search.setBackground(Ui.rounded(this, Ui.SURFACE, focused ? Ui.ORANGE : Ui.BORDER, 28)));
+                search.setBackground(Ui.rounded(this, Ui.colors(MainActivity.this).SURFACE, focused ? Ui.colors(MainActivity.this).ORANGE : Ui.colors(MainActivity.this).BORDER, 28)));
         search.setInputType(InputType.TYPE_CLASS_TEXT);
         search.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         search.setOnEditorActionListener((v, action, event) -> {
@@ -268,19 +281,22 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         browsePanel.addView(searchRow, new LinearLayout.LayoutParams(-1, -2));
         LinearLayout platforms = Ui.row(this);
         platforms.setPadding(Ui.dp(this, 18), 0, Ui.dp(this, 18), Ui.dp(this, 6));
-        TextView filterLabel = Ui.text(this, "Search in", 13, Ui.MUTED);
+        TextView filterLabel = Ui.text(this, "Search in", 13, Ui.colors(MainActivity.this).MUTED);
         filterLabel.setPadding(0, 0, Ui.dp(this, 12), 0);
         platforms.addView(filterLabel);
         LinearLayout platformOptions = Ui.row(this);
         Ui.pad(platformOptions, 3);
-        platformOptions.setBackground(Ui.rounded(this, Ui.SOFT, Ui.BORDER, 28));
-        threeDsButton = Ui.tabButton(this, "3DS", () -> selectPlatform(false));
+        platformOptions.setBackground(Ui.rounded(this, Ui.colors(MainActivity.this).SOFT, Ui.colors(MainActivity.this).BORDER, 28));
+        threeDsButton = Ui.tabButton(this, "3DS", () -> selectPlatform(GamePlatform.THREE_DS));
         threeDsButton.setContentDescription("Search Nintendo 3DS games");
-        ndsButton = Ui.tabButton(this, "DS", () -> selectPlatform(true));
+        ndsButton = Ui.tabButton(this, "DS", () -> selectPlatform(GamePlatform.DS));
         ndsButton.setContentDescription("Search Nintendo DS games");
+        gbaButton = Ui.tabButton(this, "GBA", () -> selectPlatform(GamePlatform.GBA));
+        gbaButton.setContentDescription("Search Game Boy Advance games");
         platformOptions.addView(threeDsButton, new LinearLayout.LayoutParams(0, -2, 1));
         platformOptions.addView(ndsButton, new LinearLayout.LayoutParams(0, -2, 1));
-        platforms.addView(platformOptions, new LinearLayout.LayoutParams(wideLayout() ? Ui.dp(this, 170) : 0,
+        platformOptions.addView(gbaButton, new LinearLayout.LayoutParams(0, -2, 1));
+        platforms.addView(platformOptions, new LinearLayout.LayoutParams(wideLayout() ? Ui.dp(this, 240) : 0,
                 -2, wideLayout() ? 0 : 1));
         LinearLayout filters = Ui.row(this);
         languageButton = filterButton(() -> chooseFilter(false));
@@ -307,12 +323,23 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         Ui.pad(dsBody, 18);
         LinearLayout dsCard = Ui.card(this);
         dsCard.addView(Ui.heading(this, "A new shelf for Nintendo DS."));
-        dsCard.addView(Ui.text(this, "Explore Nintendo DS games across regions. Use Language and Region to find your edition.", 16, Ui.MUTED));
+        dsCard.addView(Ui.text(this, "Explore Nintendo DS games across regions. Use Language and Region to find your edition.", 16, Ui.colors(MainActivity.this).MUTED));
         dsCard.addView(Ui.primaryButton(this, "Browse DS games", () -> loadCatalog(NdsCatalog.HOME)));
-        dsCard.addView(Ui.text(this, "Choose your DS games folder in Settings. Download a title, choose Save DS game, then Open in melonDS to play.", 15, Ui.TEXT));
+        dsCard.addView(Ui.text(this, "Choose your DS games folder in Settings. Download a title, choose Save DS game, then Open in melonDS to play.", 15, Ui.colors(MainActivity.this).TEXT));
         dsBody.addView(dsCard);
         ndsHome.addView(dsBody);
         browsePanel.addView(ndsHome, new LinearLayout.LayoutParams(-1, 0, 1));
+        gbaHome = new ScrollView(this);
+        LinearLayout gbaBody = Ui.column(this);
+        Ui.pad(gbaBody, 18);
+        LinearLayout gbaCard = Ui.card(this);
+        gbaCard.addView(Ui.heading(this, "Game Boy Advance on your shelf."));
+        gbaCard.addView(Ui.text(this, "Browse GBA games across regions and choose your edition.", 16, Ui.colors(MainActivity.this).MUTED));
+        gbaCard.addView(Ui.primaryButton(this, "Browse GBA games", () -> loadCatalog(GbaCatalog.HOME)));
+        gbaCard.addView(Ui.text(this, "Choose a GBA games folder in Settings. Download a title, then choose Save GBA game. Each saved game is checked against its catalog fingerprint.", 15, Ui.colors(MainActivity.this).TEXT));
+        gbaBody.addView(gbaCard);
+        gbaHome.addView(gbaBody);
+        browsePanel.addView(gbaHome, new LinearLayout.LayoutParams(-1, 0, 1));
         catalogPanel = Ui.column(this);
         catalogResults = new CatalogResultsView(this, new CatalogResultsView.Listener() {
             @Override public void onNavigate(String url) { loadCatalog(url); }
@@ -325,33 +352,34 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     }
 
     private static boolean isCatalogUrl(String url) {
-        return CatalogParser.isCatalogPageUrl(url) || NdsCatalog.isPageUrl(url);
+        return GamePlatform.isCatalogUrl(url);
     }
 
-    private void selectPlatform(boolean ds) {
-        if (ndsMode == ds) return;
-        ndsMode = ds;
-        preferences.edit().putBoolean("ndsMode", ds).apply();
+    private void selectPlatform(GamePlatform next) {
+        if (platform == next) return;
+        platform = next;
+        preferences.edit().putString("platform", next.id).apply();
         dismissVerification();
         // An old provider's in-flight response must not enqueue or open verification here.
         catalogResults.setDownloadState(pendingDownload, "Download", false);
         pendingDownload = "";
         downloadGeneration++;
-        sourcePage = ds ? NdsCatalog.HOME : DownloadPolicy.HOME;
+        sourcePage = platform.homeUrl();
         setShelfVisible(true);
         updatePlatformUi();
         if (!search.getText().toString().trim().isEmpty()) submitSearch();
-        else if (ds) loadCatalog(NdsCatalog.HOME);
+        else if (platform != GamePlatform.THREE_DS) loadCatalog(platform.homeUrl());
         else if (hasActiveCatalogFilters()) loadCatalog(DownloadPolicy.HOME + "c/games");
     }
 
     private void updatePlatformUi() {
-        emulatorButton.setText(ndsMode ? "melonDS ↗" : "Azahar ↗");
-        threeDsButton.setSelected(!ndsMode);
-        ndsButton.setSelected(ndsMode);
-        search.setHint(ndsMode ? "Search DS games" : "Search 3DS games");
-        search.setContentDescription(ndsMode ? "Search Nintendo DS games" : "Search Nintendo 3DS games");
-        catalogResults.setNdsCatalog(ndsMode);
+        emulatorButton.setText(platform == GamePlatform.GBA ? "GBA help" : platform == GamePlatform.DS ? "melonDS ↗" : "Azahar ↗");
+        threeDsButton.setSelected(platform == GamePlatform.THREE_DS);
+        ndsButton.setSelected(platform == GamePlatform.DS);
+        gbaButton.setSelected(platform == GamePlatform.GBA);
+        search.setHint("Search " + platform.shortLabel + " games");
+        search.setContentDescription("Search " + platform.label + " games");
+        catalogResults.setPlatform(platform);
         updateFilterUi();
     }
 
@@ -432,18 +460,19 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         catalogGeneration++;
         if (catalogTask != null) catalogTask.cancel(true);
         String editionParent = null;
-        if (NdsCatalog.isEditionSelectionUrl(sourcePage)) {
+        if (GamePlatform.isEditionSelectionUrl(sourcePage)) {
             for (int index = catalogHistory.size() - 1; index >= 0; index--) {
                 String previous = catalogHistory.get(index);
-                if (NdsCatalog.isPageUrl(previous) && !NdsCatalog.isDetailUrl(previous)
-                        && !NdsCatalog.isEditionSelectionUrl(previous)) {
+                if (isCatalogUrl(previous) && GamePlatform.forCatalog(previous) == platform
+                        && !NdsCatalog.isDetailUrl(previous) && !GbaCatalog.isDetailUrl(previous)
+                        && !GamePlatform.isEditionSelectionUrl(previous)) {
                     editionParent = previous;
                     break;
                 }
             }
             if (editionParent == null) {
                 String query = search.getText().toString().trim();
-                editionParent = query.isEmpty() ? NdsCatalog.HOME : NdsCatalog.searchUrl(query);
+                editionParent = query.isEmpty() ? platform.homeUrl() : platform.searchUrl(query);
             }
         }
         catalogHistory.clear();
@@ -452,12 +481,12 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         }
         catalogCache.evictAll();
         String next = sourcePage;
-        boolean detail = NdsCatalog.isDetailUrl(next) || (CatalogParser.isCatalogPageUrl(next)
+        boolean detail = NdsCatalog.isDetailUrl(next) || GbaCatalog.isDetailUrl(next) || (CatalogParser.isCatalogPageUrl(next)
                 && Uri.parse(next).getPath().matches("/t/[0-9]+/?"));
         if (showingShelf || detail) {
             String query = search.getText().toString().trim();
-            next = !query.isEmpty() ? (ndsMode ? NdsCatalog.searchUrl(query) : DownloadPolicy.searchUrl(query))
-                    : ndsMode ? NdsCatalog.HOME : DownloadPolicy.HOME + "c/games";
+            next = !query.isEmpty() ? platform.searchUrl(query)
+                    : platform == GamePlatform.THREE_DS ? DownloadPolicy.HOME + "c/games" : platform.homeUrl();
         }
         showCatalog(CatalogFilters.apply(next, catalogLanguage, catalogRegion, true), false);
     }
@@ -469,8 +498,9 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             if (catalogTask != null) catalogTask.cancel(true);
             catalogHistory.clear();
         }
-        browseHome.setVisibility(visible && !ndsMode ? View.VISIBLE : View.GONE);
-        ndsHome.setVisibility(visible && ndsMode ? View.VISIBLE : View.GONE);
+        browseHome.setVisibility(visible && platform == GamePlatform.THREE_DS ? View.VISIBLE : View.GONE);
+        ndsHome.setVisibility(visible && platform == GamePlatform.DS ? View.VISIBLE : View.GONE);
+        gbaHome.setVisibility(visible && platform == GamePlatform.GBA ? View.VISIBLE : View.GONE);
         catalogPanel.setVisibility(visible ? View.GONE : View.VISIBLE);
         updateCompanion();
     }
@@ -480,14 +510,14 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         body.setClipChildren(false);
         LinearLayout heading = Ui.row(this);
         heading.addView(Ui.heading(this, "Downloads"), new LinearLayout.LayoutParams(0, -2, 1));
-        wifiStatus = Ui.text(this, "Wi-Fi only", 12, Ui.MUTED);
+        wifiStatus = Ui.text(this, "Wi-Fi only", 12, Ui.colors(MainActivity.this).MUTED);
         Ui.pad(wifiStatus, 10);
-        wifiStatus.setBackground(Ui.rounded(this, Ui.SURFACE, Ui.BORDER, 24));
+        wifiStatus.setBackground(Ui.rounded(this, Ui.colors(MainActivity.this).SURFACE, Ui.colors(MainActivity.this).BORDER, 24));
         heading.addView(wifiStatus);
         body.addView(heading);
-        body.addView(Ui.text(this, "A little closer to your next adventure.", 15, Ui.MUTED));
-        downloadSummary = Ui.text(this, "", 13, Ui.ACCENT); body.addView(downloadSummary);
-        exportStatus = Ui.text(this, "", 14, Ui.AMBER); body.addView(exportStatus);
+        body.addView(Ui.text(this, "A little closer to your next adventure.", 15, Ui.colors(MainActivity.this).MUTED));
+        downloadSummary = Ui.text(this, "", 13, Ui.colors(MainActivity.this).ACCENT); body.addView(downloadSummary);
+        exportStatus = Ui.text(this, "", 14, Ui.colors(MainActivity.this).AMBER); body.addView(exportStatus);
         downloadList = Ui.column(this);
         downloadList.setClipChildren(false);
         body.addView(downloadList, new LinearLayout.LayoutParams(-1, -2));
@@ -498,7 +528,13 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         settingsPanel = new ScrollView(this);
         LinearLayout body = Ui.column(this); Ui.pad(body, 18); settingsPanel.addView(body);
         body.addView(Ui.heading(this, "Make yourself at home."));
-        body.addView(Ui.text(this, "A few little things, just the way you like them.", 15, Ui.MUTED));
+        body.addView(Ui.text(this, "A few little things, just the way you like them.", 15, Ui.colors(MainActivity.this).MUTED));
+        LinearLayout appearance = settingsCard(body, "Appearance");
+        appearance.addView(Ui.settingsButton(this, "Theme: " + AppTheme.selected(this).label,
+                this::chooseTheme, false));
+        appearance.addView(Ui.text(this,
+                "Follow your device, or choose a fixed theme. OLED black uses pure black backgrounds on both screens.",
+                14, Ui.colors(MainActivity.this).MUTED));
         LinearLayout downloadSettings = settingsCard(body, "Downloads");
         Switch wifi = new Switch(this); wifi.setText("Wi-Fi only"); styleSwitch(wifi);
         wifi.setChecked(preferences.getBoolean("wifiOnly", true));
@@ -507,7 +543,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             wifiStatus.setText(checked ? "Wi-Fi only" : "All networks");
         });
         downloadSettings.addView(wifi);
-        downloadSettings.addView(Ui.text(this, "Applies to new downloads. Android keeps your queue moving in the background and retries interrupted transfers.", 14, Ui.MUTED));
+        downloadSettings.addView(Ui.text(this, "Applies to new downloads. Android keeps your queue moving in the background and retries interrupted transfers.", 14, Ui.colors(MainActivity.this).MUTED));
         LinearLayout companionSettings = settingsCard(body, "Your second screen");
         Switch dual = new Switch(this); dual.setText("Companion display"); styleSwitch(dual);
         dual.setChecked(preferences.getBoolean("companion", true));
@@ -515,27 +551,27 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             preferences.edit().putBoolean("companion", checked).apply(); configureCompanion();
         });
         companionSettings.addView(dual);
-        displayStatus = Ui.text(this, "", 14, Ui.MUTED); companionSettings.addView(displayStatus);
-        companionSettings.addView(Ui.text(this, "Keep an eye on downloads and preparation while you browse. Works with an available second display, or on a single screen.", 14, Ui.MUTED));
+        displayStatus = Ui.text(this, "", 14, Ui.colors(MainActivity.this).MUTED); companionSettings.addView(displayStatus);
+        companionSettings.addView(Ui.text(this, "Keep an eye on downloads and preparation while you browse. Works with an available second display, or on a single screen.", 14, Ui.colors(MainActivity.this).MUTED));
         LinearLayout games = settingsCard(body, "Ready for Azahar");
-        gamesFolderStatus = Ui.text(this, "", 15, Ui.TEXT);
+        gamesFolderStatus = Ui.text(this, "", 15, Ui.colors(MainActivity.this).TEXT);
         games.addView(gamesFolderStatus);
         changeGamesFolder = Ui.button(this, "Choose games folder", () -> {
             folderDownloadId = -1;
             openGamesFolderPicker(CHANGE_PREPARATION_FOLDER);
         });
         games.addView(changeGamesFolder);
-        games.addView(Ui.text(this, "Completed 3DS downloads are saved here automatically. Changing it applies to future downloads; existing games stay where they are.", 14, Ui.MUTED));
+        games.addView(Ui.text(this, "Completed 3DS downloads are saved here automatically. Changing it applies to future downloads; existing games stay where they are.", 14, Ui.colors(MainActivity.this).MUTED));
         updateGamesFolder();
-        games.addView(Ui.text(this, "1. Choose your games folder once.\n2. Download a game. ThorShelf prepares it only when needed, saves it to your folder, and removes the original download.\n3. Add that folder in Azahar, then refresh its game list.", 15, Ui.TEXT));
-        games.addView(Ui.text(this, "The original is removed only after the saved game is verified. If saving fails or is cancelled, the original stays available to retry. Preparation may need temporary internal storage of about five times the download size. Updates and DLC still need Install CIA in Azahar and their matching game.", 14, Ui.MUTED));
+        games.addView(Ui.text(this, "1. Choose your games folder once.\n2. Download a game. ThorShelf prepares it only when needed, saves it to your folder, and removes the original download.\n3. Add that folder in Azahar, then refresh its game list.", 15, Ui.colors(MainActivity.this).TEXT));
+        games.addView(Ui.text(this, "The original is removed only after the saved game is verified. If saving fails or is cancelled, the original stays available to retry. Preparation may need temporary internal storage of about five times the download size. Updates and DLC still need Install CIA in Azahar and their matching game.", 14, Ui.colors(MainActivity.this).MUTED));
         games.addView(Ui.primaryButton(this, "Open Azahar", this::launchAzahar));
         LinearLayout dsGames = settingsCard(body, "Nintendo DS games");
-        dsGames.addView(Ui.text(this, "Choose a folder once. Save DS game on a completed download will save its .nds file here, ready to open in melonDS.", 15, Ui.TEXT));
-        TextView dsFolderLabel = Ui.text(this, "Games folder", 12, Ui.MUTED);
+        dsGames.addView(Ui.text(this, "Choose a folder once. Save DS game on a completed download will save its .nds file here, ready to open in melonDS.", 15, Ui.colors(MainActivity.this).TEXT));
+        TextView dsFolderLabel = Ui.text(this, "Games folder", 12, Ui.colors(MainActivity.this).MUTED);
         dsFolderLabel.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 2));
         dsGames.addView(dsFolderLabel);
-        dsGamesFolderStatus = Ui.text(this, "", 15, Ui.TEXT);
+        dsGamesFolderStatus = Ui.text(this, "", 15, Ui.colors(MainActivity.this).TEXT);
         dsGames.addView(dsGamesFolderStatus);
         LinearLayout dsActions = wideLayout() ? Ui.row(this) : Ui.column(this);
         changeDsGamesFolder = Ui.settingsButton(this, "Choose games folder", () -> {
@@ -553,17 +589,46 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         LinearLayout.LayoutParams dsActionsParams = new LinearLayout.LayoutParams(-1, -2);
         dsActionsParams.setMargins(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
         dsGames.addView(dsActions, dsActionsParams);
-        dsGames.addView(Ui.text(this, "Add this folder to melonDS’s library too. Supports .nds files and ZIPs containing one DS game.", 14, Ui.MUTED));
+        dsGames.addView(Ui.text(this, "Add this folder to melonDS’s library too. Supports .nds files and ZIPs containing one DS game.", 14, Ui.colors(MainActivity.this).MUTED));
         updateDsGamesFolder();
+        LinearLayout gbaGames = settingsCard(body, "Game Boy Advance games");
+        gbaGames.addView(Ui.text(this, "Choose a folder once. Save GBA game checks the download and saves its .gba file here. Add the same folder to your GBA emulator’s library.", 15, Ui.colors(MainActivity.this).TEXT));
+        TextView gbaFolderLabel = Ui.text(this, "Games folder", 12, Ui.colors(MainActivity.this).MUTED);
+        gbaFolderLabel.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 2));
+        gbaGames.addView(gbaFolderLabel);
+        gbaGamesFolderStatus = Ui.text(this, "", 15, Ui.colors(MainActivity.this).TEXT);
+        gbaGames.addView(gbaGamesFolderStatus);
+        changeGbaGamesFolder = Ui.settingsButton(this, "Choose games folder", () -> openGamesFolderPicker(CHANGE_GBA_FOLDER), false);
+        gbaGames.addView(changeGbaGamesFolder);
+        gbaGames.addView(Ui.text(this, "If verification fails, the incomplete saved copy is removed and the download stays available. Download it again if its contents do not match.", 14, Ui.colors(MainActivity.this).MUTED));
+        updateGbaGamesFolder();
         LinearLayout controls = settingsCard(body, "Made for your handheld");
-        controls.addView(Ui.text(this, "D-pad: move focus · A: select · B: back\nL / R: switch tabs · Y: search\nUse touch if hShop asks for verification.", 15, Ui.TEXT));
+        controls.addView(Ui.text(this, "D-pad: move focus · A: select · B: back\nL / R: switch tabs · Y: search\nUse touch if hShop asks for verification.", 15, Ui.colors(MainActivity.this).TEXT));
         LinearLayout help = settingsCard(body, "A little help");
-        help.addView(Ui.text(this, "If a download link expires, choose Download again for a fresh one. If verification will not load, update Android System WebView or open the catalog in your browser.", 14, Ui.MUTED));
-        help.addView(Ui.button(this, "Open catalog in browser", () -> openExternal(ndsMode
-                ? "https://github.com/0x1a4-dev/DSiDrop" : CatalogFilters.sourceUrl(sourcePage))));
+        help.addView(Ui.text(this, "If a download link expires, choose Download again for a fresh one. If verification will not load, update Android System WebView or open the catalog in your browser.", 14, Ui.colors(MainActivity.this).MUTED));
+        help.addView(Ui.button(this, "Open catalog in browser", () -> openExternal(platform == GamePlatform.GBA
+                ? "https://archive.org/details/CentralArquivista-GameBoyAdvance"
+                : platform == GamePlatform.DS ? "https://github.com/0x1a4-dev/DSiDrop" : CatalogFilters.sourceUrl(sourcePage))));
         help.addView(Ui.button(this, "Open-source licenses", this::showLicenses));
         help.addView(Ui.button(this, "3DS cover art: GameTDB", () -> openExternal("https://www.gametdb.com/")));
-        body.addView(Ui.text(this, "ThorShelf 0.6.0 · Unofficial companion\nCatalogs: hShop and DSiDrop. DS cover art: libretro. DS language metadata: GameTDB. Not affiliated with these services, Nintendo, AYN, or Azahar. Shelf illustrations are bundled editorial artwork.", 12, Ui.MUTED));
+        body.addView(Ui.text(this, "ThorShelf 0.7.0 · Unofficial companion\nCatalogs: hShop, DSiDrop, and No-Intro / libretro. GBA downloads: Central Arquivista. DS and GBA cover art: libretro. DS language metadata: GameTDB. Not affiliated with these services, Nintendo, AYN, or Azahar. Shelf illustrations are bundled editorial artwork.", 12, Ui.colors(MainActivity.this).MUTED));
+    }
+
+    private void chooseTheme() {
+        AppTheme.Mode[] modes = AppTheme.Mode.values();
+        String[] labels = new String[modes.length];
+        for (int index = 0; index < modes.length; index++) labels[index] = modes[index].label;
+        new AlertDialog.Builder(this).setTitle("Choose theme")
+                .setSingleChoiceItems(labels, AppTheme.selected(this).ordinal(), (dialog, which) -> {
+                    dialog.dismiss();
+                    AppTheme.Mode chosen = modes[which];
+                    if (chosen == AppTheme.selected(this)) return;
+                    preferences.edit().putString(AppTheme.PREFERENCE, chosen.id).apply();
+                    // Rebuild native controls and the companion display with the selected palette.
+                    // Existing saved state restores the current tab, catalog, filters, and save picker.
+                    recreate();
+                })
+                .setNegativeButton("Cancel", null).show();
     }
 
     private LinearLayout settingsCard(LinearLayout parent, String title) {
@@ -576,14 +641,14 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     }
 
     private void styleSwitch(Switch control) {
-        control.setTextColor(Ui.TEXT); control.setTextSize(16);
+        control.setTextColor(Ui.colors(MainActivity.this).TEXT); control.setTextSize(16);
         control.setMinHeight(Ui.dp(this, 52));
         control.setThumbTintList(new android.content.res.ColorStateList(
                 new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
-                new int[] {Ui.ACCENT, Ui.MUTED}));
+                new int[] {Ui.colors(MainActivity.this).ACCENT, Ui.colors(MainActivity.this).MUTED}));
         control.setTrackTintList(new android.content.res.ColorStateList(
                 new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
-                new int[] {0xFFFFD4A5, Ui.BORDER}));
+                new int[] {Ui.colors(MainActivity.this).SWITCH_TRACK, Ui.colors(MainActivity.this).BORDER}));
     }
 
     private void showLicenses() {
@@ -602,7 +667,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             handler.post(() -> {
                 if (isDestroyed()) return;
                 ScrollView scroll = new ScrollView(this);
-                TextView details = Ui.text(this, text, 13, Ui.TEXT);
+                TextView details = Ui.text(this, text, 13, Ui.colors(MainActivity.this).TEXT);
                 details.setTextIsSelectable(true); Ui.pad(details, 16); scroll.addView(details);
                 new AlertDialog.Builder(this).setTitle("Open-source licenses").setView(scroll)
                         .setPositiveButton("Close", null).show();
@@ -614,7 +679,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         String query = search.getText().toString().trim();
         if (query.isEmpty()) { search.requestFocus(); return; }
         getSystemService(InputMethodManager.class).hideSoftInputFromWindow(search.getWindowToken(), 0);
-        loadCatalog(ndsMode ? NdsCatalog.searchUrl(query) : DownloadPolicy.searchUrl(query));
+        loadCatalog(platform.searchUrl(query));
     }
     private void loadCatalog(String url) {
         if (!isCatalogUrl(url)) return;
@@ -625,7 +690,8 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private void showCatalog(String requestedUrl, boolean addHistory) {
         String url = CatalogFilters.apply(requestedUrl, catalogLanguage, catalogRegion, false);
         if (!isCatalogUrl(url)) return;
-        ndsMode = NdsCatalog.isPageUrl(url);
+        platform = GamePlatform.forCatalog(url);
+        preferences.edit().putString("platform", platform.id).apply();
         updatePlatformUi();
         if (Uri.parse(url).getQueryParameter("q") != null) {
             String query = Uri.parse(url).getQueryParameter("q");
@@ -639,17 +705,19 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         setShelfVisible(false);
         int generation = ++catalogGeneration;
         if (catalogTask != null) catalogTask.cancel(true);
-        currentTitle = ndsMode ? "Nintendo DS games"
+        currentTitle = platform != GamePlatform.THREE_DS ? platform.label + " games"
                 : url.contains("/search/results") ? "Search results" : "Catalog";
         // The DS client owns its feed's expiration; do not keep older derived pages here.
-        CatalogPage cached = ndsMode ? null : catalogCache.get(url);
+        CatalogPage cached = platform == GamePlatform.THREE_DS ? catalogCache.get(url) : null;
         if (cached != null) { renderCatalog(cached); return; }
         catalogResults.showLoading(currentTitle);
-        boolean ds = NdsCatalog.isPageUrl(url);
-        String cookie = ds ? null : CookieManager.getInstance().getCookie(url);
+        GamePlatform requestedPlatform = GamePlatform.forCatalog(url);
+        boolean hshop = requestedPlatform == GamePlatform.THREE_DS;
+        String cookie = hshop ? CookieManager.getInstance().getCookie(url) : null;
         catalogTask = catalogQueries.submit(() -> {
             try {
-                CatalogPage page = ds ? ndsCatalogClient.fetch(url, userAgent)
+                CatalogPage page = requestedPlatform == GamePlatform.GBA ? gbaCatalogClient.fetch(url, userAgent)
+                        : requestedPlatform == GamePlatform.DS ? ndsCatalogClient.fetch(url, userAgent)
                         : catalogClient.fetch(url, userAgent, cookie);
                 handler.post(() -> {
                     if (isDestroyed() || generation != catalogGeneration) return;
@@ -657,16 +725,17 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                         catalogResults.showError("hShop needs a quick verification before showing these results.",
                                 () -> showCatalog(url, false), () -> verifyCatalog(url, null, generation));
                     } else {
-                        if (!ds) catalogCache.put(url, page);
+                        if (hshop) catalogCache.put(url, page);
                         renderCatalog(page);
                     }
                 });
             } catch (IOException | RuntimeException e) {
                 handler.post(() -> {
                     if (isDestroyed() || generation != catalogGeneration) return;
-                    boolean needsCheck = !ds && e instanceof CatalogClient.VerificationRequiredException;
+                    boolean needsCheck = hshop && e instanceof CatalogClient.VerificationRequiredException;
                     catalogResults.showError(needsCheck ? "hShop needs a quick verification to continue."
-                                    : ds ? "Couldn’t load the DS catalog. Check your connection and try again."
+                                    : requestedPlatform == GamePlatform.GBA ? "Couldn’t load the GBA catalog. Try reopening ThorShelf."
+                                    : requestedPlatform == GamePlatform.DS ? "Couldn’t load the DS catalog. Check your connection and try again."
                                     : "Couldn’t load the catalog. Check your connection and try again.",
                             () -> showCatalog(url, false), needsCheck ? () -> verifyCatalog(url, null, generation) : null);
                 });
@@ -682,9 +751,9 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     }
 
     private void downloadCatalogEntry(CatalogPage.Entry entry) {
-        if (NdsCatalog.isEditionSelectionUrl(entry.url)) { loadCatalog(entry.url); return; }
+        if (GamePlatform.isEditionSelectionUrl(entry.url)) { loadCatalog(entry.url); return; }
         if (!pendingDownload.isEmpty()) { toast("Finishing your current download request…"); return; }
-        if (NdsCatalog.isDetailUrl(entry.url)) { downloadNdsEntry(entry); return; }
+        if (NdsCatalog.isDetailUrl(entry.url) || GbaCatalog.isDetailUrl(entry.url)) { downloadRomEntry(entry); return; }
         if (!CatalogParser.isCatalogPageUrl(entry.url) || !Uri.parse(entry.url).getPath().matches("/t/[0-9]+/?")) return;
         pendingDownload = entry.url;
         int generation = ++downloadGeneration;
@@ -723,7 +792,9 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         });
     }
 
-    private void downloadNdsEntry(CatalogPage.Entry entry) {
+    private void downloadRomEntry(CatalogPage.Entry entry) {
+        boolean gba = GbaCatalog.isDetailUrl(entry.url);
+        String system = gba ? "GBA" : "DS";
         pendingDownload = entry.url;
         int generation = ++downloadGeneration;
         catalogResults.setDownloadState(entry.url, "Getting link…", true);
@@ -741,31 +812,40 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                         return;
                     }
                 }
-                CatalogPage page = ndsCatalogClient.fetch(entry.url, userAgent);
+                CatalogPage page = gba ? gbaCatalogClient.fetch(entry.url, userAgent)
+                        : ndsCatalogClient.fetch(entry.url, userAgent);
                 if (!page.isDetail() || page.entries.size() != 1
                         || !entry.url.equals(page.entries.get(0).url) || page.downloadUrl.isEmpty()) {
-                    throw new IOException("The selected DS edition is no longer available.");
+                    throw new IOException("The selected " + system + " edition is no longer available.");
                 }
                 CatalogPage.Entry edition = page.entries.get(0);
-                CatalogClient.DownloadInfo file = catalogClient.inspectNdsDownload(page.downloadUrl, userAgent);
+                GbaCatalog.Rom gbaRom = gba ? GbaCatalog.lookup(entry.url) : null;
+                CatalogClient.DownloadInfo file = gba ? catalogClient.inspectGbaDownload(page.downloadUrl, userAgent)
+                        : catalogClient.inspectNdsDownload(page.downloadUrl, userAgent);
+                if (gba && (gbaRom == null || file.size >= 0 && file.size != gbaRom.sizeBytes)) {
+                    throw new IOException("The GBA download does not match the catalog size.");
+                }
                 handler.post(() -> {
                     if (!activeDownload(generation)) return;
                     try {
                         // Keep the catalog's readable title but retain the verified response's file type.
                         String extension = file.name.substring(file.name.lastIndexOf('.'));
-                        downloads.enqueueNds(file.url, GameFilename.clean(edition.title + extension), userAgent,
+                        if (gba) downloads.enqueueGba(file.url, GameFilename.clean(edition.title + extension), userAgent,
+                                edition.url, preferences.getBoolean("wifiOnly", true), edition.artworkUrl, gbaRom.sha1, gbaRom.sizeBytes);
+                        else downloads.enqueueNds(file.url, GameFilename.clean(edition.title + extension), userAgent,
                                 edition.url, preferences.getBoolean("wifiOnly", true), edition.artworkUrl);
                         pendingDownload = "";
                         catalogResults.setDownloadState(entry.url, "Queued ✓", false);
                         refreshDownloads();
                         toast(edition.title + " added to Downloads");
                     } catch (RuntimeException e) {
-                        downloadFailed(entry, generation, "Could not start this DS download. Check free space and Android Download Manager.");
+                        downloadFailed(entry, generation, "Could not start this " + system + " download. Check free space and Android Download Manager.");
                     }
                 });
             } catch (IOException | RuntimeException e) {
                 handler.post(() -> downloadFailed(entry, generation,
-                        "The DS download is unavailable or is not a supported .nds or ZIP file. Try again later."));
+                        gba ? "The GBA download is unavailable or does not match the catalog. Try again later."
+                                : "The DS download is unavailable or is not a supported .nds or ZIP file. Try again later."));
             }
         });
     }
@@ -907,7 +987,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             if (entries.isEmpty()) {
                 LinearLayout empty = Ui.card(this);
                 empty.addView(Ui.heading(this, "A shelf full of possibilities."));
-                empty.addView(Ui.text(this, "Find a game in Browse. Your downloads and progress will appear here.", 15, Ui.MUTED));
+                empty.addView(Ui.text(this, "Find a game in Browse. Your downloads and progress will appear here.", 15, Ui.colors(MainActivity.this).MUTED));
                 empty.addView(Ui.primaryButton(this, "Browse games", () -> { showTab(0); setShelfVisible(true); }));
                 downloadList.addView(empty);
             }
@@ -991,10 +1071,10 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, -2, 1);
             textParams.setMarginStart(Ui.dp(MainActivity.this, 12));
             details.addView(text, textParams);
-            TextView title = Ui.text(MainActivity.this, GameArtwork.displayTitle(entry.displayName), 17, Ui.TEXT);
+            TextView title = Ui.text(MainActivity.this, GameArtwork.displayTitle(entry.displayName), 17, Ui.colors(MainActivity.this).TEXT);
             title.setTypeface(null, Typeface.BOLD);
             text.addView(title);
-            status = Ui.text(MainActivity.this, "", 13, Ui.MUTED); text.addView(status);
+            status = Ui.text(MainActivity.this, "", 13, Ui.colors(MainActivity.this).MUTED); text.addView(status);
             progress = new ProgressBar(MainActivity.this, null, android.R.attr.progressBarStyleHorizontal);
             progress.setMax(1000); Ui.styleProgress(progress);
             LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(-1, Ui.dp(MainActivity.this, 6));
@@ -1052,18 +1132,23 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                 completionAction = null;
             }
             String lowerName = entry.name.toLowerCase(Locale.ROOT);
-            if (entry.isComplete() && (lowerName.endsWith(".nds")
-                    || ((NdsCatalog.HOME.equals(entry.sourcePage) || NdsCatalog.isDetailUrl(entry.sourcePage))
-                    && lowerName.endsWith(".zip")))) {
-                root.addView(Ui.primaryButton(MainActivity.this, "Save DS game", () -> saveNdsGame(entry)));
+            if (entry.isComplete() && entry.platform == GamePlatform.DS
+                    && (lowerName.endsWith(".nds") || lowerName.endsWith(".zip"))) {
+                root.addView(Ui.primaryButton(MainActivity.this, "Save DS game", () -> saveRomGame(entry)));
                 openDs = Ui.primaryButton(MainActivity.this, "Open in melonDS", () -> openDsGame(entry));
                 openDs.setVisibility(View.GONE);
                 root.addView(openDs);
                 root.addView(Ui.text(MainActivity.this, lowerName.endsWith(".zip")
                         ? "Save the .nds file to your DS games folder, then open it in melonDS. Extra data files need manual setup."
-                        : "Save this .nds file to your DS games folder, then open it in melonDS.", 13, Ui.MUTED));
+                        : "Save this .nds file to your DS games folder, then open it in melonDS.", 13, Ui.colors(MainActivity.this).MUTED));
             } else {
                 openDs = null;
+            }
+            if (entry.isComplete() && entry.platform == GamePlatform.GBA) {
+                root.addView(Ui.primaryButton(MainActivity.this, "Save GBA game", () -> saveRomGame(entry)));
+                root.addView(Ui.text(MainActivity.this,
+                        "Verify and save this .gba file to your GBA games folder, then open it from your emulator’s library.",
+                        13, Ui.colors(MainActivity.this).MUTED));
             }
         }
         void updateArtwork(String title, String url) {
@@ -1079,7 +1164,11 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
             String size = Formatter.formatFileSize(MainActivity.this, entry.downloaded);
             if (entry.total > 0) size += " / " + Formatter.formatFileSize(MainActivity.this, entry.total);
             status.setText(entry.statusLabel + " · " + size);
-            status.setTextColor(entry.isComplete() ? Ui.SUCCESS : Ui.MUTED);
+            if (entry.platform == GamePlatform.GBA && entry.isComplete()) {
+                status.setText((entry.savedGbaDestination == null ? "Downloaded · Ready to verify and save" : "Verified and saved")
+                        + " · " + size);
+            }
+            status.setTextColor(entry.isComplete() ? Ui.colors(MainActivity.this).SUCCESS : Ui.colors(MainActivity.this).MUTED);
             progress.setVisibility(entry.isActive() ? View.VISIBLE : View.GONE);
             progress.setIndeterminate(entry.total <= 0);
             if (entry.total > 0) progress.setProgress((int) Math.min(1000, entry.downloaded * 1000.0 / entry.total));
@@ -1095,7 +1184,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                     completionActionKind = "cancel";
                     completionAction.setText("Cancel saving");
                     status.setText(PreparationService.status(MainActivity.this));
-                    status.setTextColor(Ui.ACCENT);
+                    status.setTextColor(Ui.colors(MainActivity.this).ACCENT);
                     progress.setVisibility(View.VISIBLE);
                     progress.setIndeterminate(false);
                     progress.setProgress(PreparationService.progress(MainActivity.this) * 10);
@@ -1104,24 +1193,24 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                     completionAction.setText("Open Azahar");
                     status.setText(entry.completionStatus.isEmpty()
                             ? "Saved to your games folder · Original removed" : entry.completionStatus);
-                    status.setTextColor(Ui.SUCCESS);
+                    status.setTextColor(Ui.colors(MainActivity.this).SUCCESS);
                 } else if (!folderAvailable || DownloadCompletion.needsFolder(entry)) {
                     completionActionKind = "folder";
                     completionAction.setText("Choose games folder");
                     status.setText(folder == null ? "Choose a games folder to finish saving this download."
                             : "Your games folder is unavailable. Choose it again to finish saving.");
-                    status.setTextColor(Ui.AMBER);
+                    status.setTextColor(Ui.colors(MainActivity.this).AMBER);
                 } else if (entry.completionAttempted) {
                     completionActionKind = "retry";
                     completionAction.setText("Retry saving");
                     completionAction.setEnabled(!running);
                     status.setText(entry.completionStatus.isEmpty()
                             ? "Saving was interrupted. The original download is safe." : entry.completionStatus);
-                    status.setTextColor(Ui.AMBER);
+                    status.setTextColor(Ui.colors(MainActivity.this).AMBER);
                 } else {
                     completionAction.setVisibility(View.GONE);
                     status.setText("Waiting to save to your games folder");
-                    status.setTextColor(Ui.MUTED);
+                    status.setTextColor(Ui.colors(MainActivity.this).MUTED);
                 }
             }
         }
@@ -1154,7 +1243,7 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                     new AlertDialog.Builder(this).setTitle("Saved DS game unavailable")
                             .setMessage("The saved game was moved, deleted, or its access expired. Choose Save DS game again, or open the file from melonDS’s library.")
                             .setNegativeButton("Close", null)
-                            .setPositiveButton("Save DS game", (d, w) -> saveNdsGame(entry)).show();
+                            .setPositiveButton("Save DS game", (d, w) -> saveRomGame(entry)).show();
                 } else if (!MelonDsLauncher.open(this, rom)) {
                     melonDsUnavailable();
                 }
@@ -1162,39 +1251,43 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         });
     }
 
-    private void saveNdsGame(DownloadStore.Entry entry) {
-        if (ndsExportId >= 0) return;
-        ndsExportId = entry.id;
-        String name = entry.displayName;
-        ndsExportName = GameFilename.clean(name.substring(0, name.lastIndexOf('.')) + ".nds");
+    private void saveRomGame(DownloadStore.Entry entry) {
+        if (romExportId >= 0 || entry.platform == GamePlatform.THREE_DS) return;
+        romExportId = entry.id;
+        romExportPlatform = entry.platform;
+        romExportName = GameFilename.withExtension(entry.displayName, romExportPlatform.extension);
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, SAVE_NDS_DOCUMENT);
+            requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS},
+                    romExportPlatform == GamePlatform.GBA ? SAVE_GBA_DOCUMENT : SAVE_NDS_DOCUMENT);
             return;
         }
-        openNdsSavePicker();
+        openRomSavePicker();
     }
 
-    private void openNdsSavePicker() {
-        if (ndsExportId < 0) return;
-        Uri folder = NdsGamesFolder.saved(preferences);
+    private void openRomSavePicker() {
+        if (romExportId < 0) return;
+        GamePlatform exporting = romExportPlatform;
+        Uri folder = exporting == GamePlatform.GBA ? GbaGamesFolder.saved(preferences) : NdsGamesFolder.saved(preferences);
         if (folder != null) {
             if (!PreparationFolder.hasPersistedAccess(this, folder)) {
-                toast("Choose your DS games folder again to restore access.");
-                openGamesFolderPicker(CHANGE_NDS_FOLDER);
+                toast("Choose your " + exporting.shortLabel + " games folder again to restore access.");
+                openGamesFolderPicker(exporting == GamePlatform.GBA ? CHANGE_GBA_FOLDER : CHANGE_NDS_FOLDER);
                 return;
             }
-            long downloadId = ndsExportId;
-            String name = ndsExportName;
-            ndsExportId = -1;
+            long downloadId = romExportId;
+            String name = romExportName;
+            romExportId = -1;
             android.content.Context app = getApplicationContext();
-            // Folder providers may be remote. Keep creation off the UI thread and let
-            // this handoff survive activity recreation, just like the export service.
+            // Keep potentially remote document-provider work off the UI thread.
             new Thread(() -> {
                 String failure = null;
-                try { NdsGamesFolder.startExport(app, downloadId, folder, name); }
-                catch (IOException | RuntimeException error) {
-                    failure = "Could not save to your DS games folder. Check its space and access, or choose another folder in Settings.";
+                try {
+                    if (exporting == GamePlatform.GBA) GbaGamesFolder.startExport(app, downloadId, folder, name);
+                    else NdsGamesFolder.startExport(app, downloadId, folder, name);
+                } catch (IOException | RuntimeException error) {
+                    failure = "Could not save to your " + exporting.shortLabel
+                            + " games folder. Check its space and access, or choose another folder in Settings.";
                 }
                 String message = failure;
                 handler.post(() -> {
@@ -1202,17 +1295,17 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                     if (message != null) toast(message);
                     refreshDownloads();
                 });
-            }, "thorshelf-save-ds-folder").start();
+            }, "thorshelf-save-rom-folder").start();
             showTab(1);
             return;
         }
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
-                .setType("application/octet-stream").putExtra(Intent.EXTRA_TITLE, ndsExportName)
+                .setType("application/octet-stream").putExtra(Intent.EXTRA_TITLE, romExportName)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                         | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        try { startActivityForResult(intent, SAVE_NDS_DOCUMENT); }
+        try { startActivityForResult(intent, exporting == GamePlatform.GBA ? SAVE_GBA_DOCUMENT : SAVE_NDS_DOCUMENT); }
         catch (ActivityNotFoundException e) {
-            ndsExportId = -1;
+            romExportId = -1;
             toast("Android’s file picker is unavailable.");
         }
     }
@@ -1221,12 +1314,12 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
                 .addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                         | Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        Uri previous = request == CHANGE_NDS_FOLDER
-                ? NdsGamesFolder.saved(preferences) : PreparationFolder.saved(preferences);
+        Uri previous = request == CHANGE_GBA_FOLDER ? GbaGamesFolder.saved(preferences)
+                : request == CHANGE_NDS_FOLDER ? NdsGamesFolder.saved(preferences) : PreparationFolder.saved(preferences);
         if (previous != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, previous);
         try { startActivityForResult(intent, request); }
         catch (ActivityNotFoundException e) {
-            if (request == CHANGE_NDS_FOLDER) ndsExportId = -1;
+            if (request == CHANGE_NDS_FOLDER || request == CHANGE_GBA_FOLDER) romExportId = -1;
             toast("No file picker is available on this device.");
         }
     }
@@ -1240,40 +1333,52 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         boolean lostAccess = folder != null && !PreparationFolder.hasPersistedAccess(this, folder);
         dsGamesFolderStatus.setText(PreparationFolder.label(folder)
                 + (lostAccess ? " · Choose this folder again to restore access." : ""));
-        dsGamesFolderStatus.setTextColor(lostAccess ? Ui.AMBER : Ui.TEXT);
+        dsGamesFolderStatus.setTextColor(lostAccess ? Ui.colors(MainActivity.this).AMBER : Ui.colors(MainActivity.this).TEXT);
         changeDsGamesFolder.setText(folder == null ? "Choose games folder" : "Change games folder");
+    }
+    private void updateGbaGamesFolder() {
+        Uri folder = GbaGamesFolder.saved(preferences);
+        boolean lostAccess = folder != null && !PreparationFolder.hasPersistedAccess(this, folder);
+        gbaGamesFolderStatus.setText(PreparationFolder.label(folder)
+                + (lostAccess ? " · Choose this folder again to restore access." : ""));
+        gbaGamesFolderStatus.setTextColor(lostAccess ? Ui.colors(MainActivity.this).AMBER : Ui.colors(MainActivity.this).TEXT);
+        changeGbaGamesFolder.setText(folder == null ? "Choose games folder" : "Change games folder");
     }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(request, permissions, results);
-        if (request == SAVE_NDS_DOCUMENT && ndsExportId >= 0) openNdsSavePicker();
+        if (romExportId >= 0 && request == (romExportPlatform == GamePlatform.GBA ? SAVE_GBA_DOCUMENT : SAVE_NDS_DOCUMENT)) openRomSavePicker();
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request == CHANGE_NDS_FOLDER) {
+        if (request == CHANGE_NDS_FOLDER || request == CHANGE_GBA_FOLDER) {
+            GamePlatform selected = request == CHANGE_GBA_FOLDER ? GamePlatform.GBA : GamePlatform.DS;
             if (result != RESULT_OK || data == null || data.getData() == null) {
-                ndsExportId = -1;
+                romExportId = -1;
                 return;
             }
             Uri folder = data.getData();
             if (!PreparationFolder.isFolder(folder)) {
-                ndsExportId = -1;
-                toast("Choose a DS games folder.");
+                romExportId = -1;
+                toast("Choose a " + selected.shortLabel + " games folder.");
                 return;
             }
             PreparationFolder.retainAccess(this, data);
             if (!PreparationFolder.hasPersistedAccess(this, folder)) {
-                ndsExportId = -1;
-                toast("This folder’s access could not be saved. Choose another DS games folder.");
+                romExportId = -1;
+                toast("This folder’s access could not be saved. Choose another " + selected.shortLabel + " games folder.");
                 return;
             }
-            preferences.edit().putString(NdsGamesFolder.PREFERENCE, folder.toString()).apply();
-            updateDsGamesFolder();
-            if (ndsExportId >= 0) openNdsSavePicker();
+            preferences.edit().putString(selected == GamePlatform.GBA ? GbaGamesFolder.PREFERENCE : NdsGamesFolder.PREFERENCE, folder.toString()).apply();
+            if (selected == GamePlatform.GBA) updateGbaGamesFolder();
+            else updateDsGamesFolder();
+            if (romExportId >= 0 && romExportPlatform == selected) openRomSavePicker();
             return;
         }
-        if (request == SAVE_NDS_DOCUMENT) {
-            if (result != RESULT_OK || data == null || data.getData() == null || ndsExportId < 0) {
-                ndsExportId = -1;
+        if (request == SAVE_NDS_DOCUMENT || request == SAVE_GBA_DOCUMENT) {
+            GamePlatform selected = request == SAVE_GBA_DOCUMENT ? GamePlatform.GBA : GamePlatform.DS;
+            if (romExportPlatform != selected) return;
+            if (result != RESULT_OK || data == null || data.getData() == null || romExportId < 0) {
+                romExportId = -1;
                 return;
             }
             Uri destination = data.getData();
@@ -1286,11 +1391,12 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
                     try { getContentResolver().takePersistableUriPermission(destination, flags); }
                     catch (SecurityException ignored) { /* Temporary permission can still allow the export. */ }
                 }
-                ExportService.startNds(this, ndsExportId, destination, ndsExportName);
+                if (selected == GamePlatform.GBA) ExportService.startGba(this, romExportId, destination, romExportName);
+                else ExportService.startNds(this, romExportId, destination, romExportName);
             } catch (RuntimeException e) {
-                toast(e.getMessage() == null ? "Could not save this DS game. Try again from Downloads." : e.getMessage());
+                toast(e.getMessage() == null ? "Could not save this " + selected.shortLabel + " game. Try again from Downloads." : e.getMessage());
             } finally {
-                ndsExportId = -1;
+                romExportId = -1;
             }
             showTab(1);
             return;
@@ -1326,8 +1432,14 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         if (tab == 2) {
             updateGamesFolder();
             updateDsGamesFolder();
+            updateGbaGamesFolder();
         }
         updateCompanion();
+    }
+    private void gbaHelp() {
+        new AlertDialog.Builder(this).setTitle("Play your GBA games")
+                .setMessage("Choose your GBA games folder in Settings. Download a game, then choose Save GBA game. ThorShelf checks the file before marking it saved. Add the same folder to your GBA emulator’s library to play.")
+                .setPositiveButton("OK", null).show();
     }
     private void melonDsHelp() {
         new AlertDialog.Builder(this).setTitle("Open in melonDS")
@@ -1443,11 +1555,11 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
     private String companionPageLabel() {
         if (tab == 1) return "Downloads";
         if (tab == 2) return "Settings";
-        String platform = ndsMode ? "Nintendo DS" : "Nintendo 3DS";
+        String platformLabel = platform.label;
         String query = showingShelf ? null : Uri.parse(sourcePage).getQueryParameter("q");
-        String label = showingShelf ? "Browse " + platform + " games"
-                : query != null && !query.trim().isEmpty() ? platform + " · Search: " + query
-                : platform + " · " + currentTitle;
+        String label = showingShelf ? "Browse " + platformLabel + " games"
+                : query != null && !query.trim().isEmpty() ? platformLabel + " · Search: " + query
+                : platformLabel + " · " + currentTitle;
         if (!catalogLanguage.isEmpty()) label += " · " + CatalogLanguages.label(catalogLanguage);
         if (!catalogRegion.isEmpty()) label += " · " + CatalogRegions.label(catalogRegion);
         return label;
@@ -1475,8 +1587,9 @@ public final class MainActivity extends Activity implements DisplayManager.Displ
         out.putInt("tab", tab); out.putString("sourcePage", sourcePage);
         out.putBoolean("showingShelf", showingShelf);
         out.putLong("folderDownloadId", folderDownloadId);
-        out.putLong("ndsExportId", ndsExportId); out.putString("ndsExportName", ndsExportName);
-        out.putBoolean("ndsMode", ndsMode);
+        out.putLong("romExportId", romExportId); out.putString("romExportName", romExportName);
+        out.putString("platform", platform.id);
+        out.putString("romExportPlatform", romExportPlatform.id);
         out.putString("catalogLanguage", catalogLanguage);
         out.putString("catalogRegion", catalogRegion);
     }

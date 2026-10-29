@@ -63,7 +63,7 @@ public class DownloadFilenameTest {
     }
 
     @Test public void preservesSupportedExtensionsInsteadOfRewritingThemForGenericBinaryMime() {
-        for (String extension : new String[] { "cia", "CCI", "cxi", "3ds", "3dsx", "nds", "zip", "7z" }) {
+        for (String extension : new String[] { "cia", "CCI", "cxi", "3ds", "3dsx", "nds", "gba", "GBA", "zip", "7z" }) {
             String name = "Game." + extension;
             assertEquals(name, DownloadFilename.resolve(OPAQUE_URL,
                     "attachment; filename=\"" + name + "\"", BINARY));

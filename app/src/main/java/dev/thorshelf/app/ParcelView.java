@@ -20,6 +20,7 @@ import android.view.animation.LinearInterpolator;
 final class ParcelView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
+    private final AppTheme.Palette colors;
     private final Shader halo = new RadialGradient(164, 139, 114,
             0x60FFDF8B, 0x00FFDF8B, Shader.TileMode.CLAMP);
     private final Shader backLeft = new LinearGradient(130, 113, 192, 152,
@@ -46,6 +47,7 @@ final class ParcelView extends View {
 
     ParcelView(Context context) {
         super(context);
+        colors = Ui.colors(context);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         setFocusable(false);
         animator.setDuration(3600);
@@ -120,13 +122,19 @@ final class ParcelView extends View {
         canvas.translate((getWidth() - 320 * scale) / 2f, (getHeight() - 250 * scale) / 2f);
         canvas.scale(scale, scale);
 
-        paint.setShader(halo);
-        canvas.drawCircle(164, 139, 114, paint);
-        paint.setShader(null);
-        paint.setColor(0x25D99024);
-        canvas.drawOval(57, 211, 274, 235, paint);
-        paint.setColor(0x19F5AA47);
-        canvas.drawOval(79, 216, 254, 230, paint);
+        // Keep the illustration's surroundings unlit on OLED. The parcel itself
+        // retains its original colors, like the other artwork in the app.
+        if (!colors.oled) {
+            paint.setShader(halo);
+            paint.setAlpha(colors.dark ? 110 : 255);
+            canvas.drawCircle(164, 139, 114, paint);
+            paint.setShader(null);
+            paint.setAlpha(255);
+            paint.setColor(0x25D99024);
+            canvas.drawOval(57, 211, 274, 235, paint);
+            paint.setColor(0x19F5AA47);
+            canvas.drawOval(79, 216, 254, 230, paint);
+        }
 
         // Subtle floating tiles are part of the illustration, never an indeterminate progress signal.
         tile(canvas, 42, 78, 14, -9, 0x29F5A338);

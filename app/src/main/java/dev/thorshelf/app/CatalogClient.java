@@ -157,17 +157,22 @@ public class CatalogClient {
     /** Checks headers only; a minimal range request supports servers that reject HEAD. */
     public DownloadInfo inspectDownload(String url, String userAgent, String cookie, String referer)
             throws IOException {
-        return inspectDownload(url, userAgent, cookie, referer, false);
+        return inspectDownload(url, userAgent, cookie, referer, GamePlatform.THREE_DS);
     }
 
     /** Inspects public DS assets without attaching any browser cookies or referring page. */
     public DownloadInfo inspectNdsDownload(String url, String userAgent) throws IOException {
-        return inspectDownload(url, userAgent, null, null, true);
+        return inspectDownload(url, userAgent, null, null, GamePlatform.DS);
+    }
+
+    /** Inspects public GBA cartridges without attaching browser cookies or a referring page. */
+    public DownloadInfo inspectGbaDownload(String url, String userAgent) throws IOException {
+        return inspectDownload(url, userAgent, null, null, GamePlatform.GBA);
     }
 
     private DownloadInfo inspectDownload(String url, String userAgent, String cookie, String referer,
-                                         boolean nds) throws IOException {
-        if (!isAllowedDownload(url, nds)) throw new IOException("Unsupported download address.");
+                                         GamePlatform platform) throws IOException {
+        if (!isAllowedDownload(url, platform)) throw new IOException("Unsupported download address.");
         validateHeader(userAgent);
         validateHeader(cookie);
         String originalHost = host(url);
@@ -179,6 +184,7 @@ public class CatalogClient {
             HttpURLConnection connection = open(current, rangeRequest ? "GET" : "HEAD", userAgent,
                     originalHost.equalsIgnoreCase(host(current)) ? cookie : null, safeReferer, rangeRequest);
             try {
+                if (platform == GamePlatform.GBA) connection.setRequestProperty("Accept-Encoding", "identity");
                 int status = connection.getResponseCode();
                 if (!rangeRequest && (status == 405 || status == 501)) {
                     rangeRequest = true;
@@ -186,43 +192,68 @@ public class CatalogClient {
                 }
                 if (isRedirect(status)) {
                     if (redirects++ >= MAX_REDIRECTS) throw new IOException("Too many download redirects.");
-                    current = redirect(current, connection.getHeaderField("Location"));
-                    if (!(nds ? DownloadPolicy.isAllowedNdsRedirect(url, current)
-                            : DownloadPolicy.isAllowedDownload(current))) {
+                    current = redirect(current, connection.getHeaderField("Location"), platform == GamePlatform.GBA);
+                    if (!isAllowedRedirect(url, current, platform)) {
                         throw new IOException("The download redirected to an unsupported address.");
                     }
                     continue;
                 }
-                if (nds) {
+                if (platform != GamePlatform.THREE_DS) {
                     if (status < 200 || status >= 300
                             || "challenge".equalsIgnoreCase(connection.getHeaderField("cf-mitigated"))) {
-                        throw new IOException("The DS download server returned HTTP " + status
+                        throw new IOException("The " + platform.shortLabel + " download server returned HTTP " + status
                                 + ". Please try again later.");
                     }
                 } else {
                     requireSuccess(connection, status, true);
                 }
-                if (rangeRequest && status != 200 && status != 206) {
+                if ((rangeRequest || platform == GamePlatform.GBA) && status != 200 && status != 206) {
                     throw new IOException("The server did not return download metadata.");
                 }
                 String contentType = connection.getContentType();
                 String disposition = connection.getHeaderField("Content-Disposition");
-                String name = nds ? DownloadFilename.resolveNds(current, disposition, contentType)
-                        : DownloadFilename.resolve(current, disposition, contentType);
+                String name;
+                switch (platform) {
+                    case GBA: name = DownloadFilename.resolveGba(current, disposition, contentType); break;
+                    case DS: name = DownloadFilename.resolveNds(current, disposition, contentType); break;
+                    default: name = DownloadFilename.resolve(current, disposition, contentType); break;
+                }
                 if (name == null) {
                     throw new IOException("The download response is not a supported content file.");
                 }
-                return new DownloadInfo(current, name, contentType == null ? "" : contentType,
-                        status == 206 ? rangeTotal(connection.getHeaderField("Content-Range"))
-                                : connection.getContentLengthLong());
+                long size = status == 206 ? rangeTotal(connection.getHeaderField("Content-Range"))
+                        : connection.getContentLengthLong();
+                if (platform == GamePlatform.GBA) {
+                    String encoding = connection.getContentEncoding();
+                    if (encoding != null && !encoding.trim().isEmpty() && !encoding.equalsIgnoreCase("identity")) {
+                        throw new IOException("The GBA server returned an unsupported response encoding.");
+                    }
+                    if (size == 0 || (connection.getHeaderField("Content-Length") != null
+                            && connection.getContentLengthLong() < 0)) {
+                        throw new IOException("The server returned invalid download size metadata.");
+                    }
+                }
+                return new DownloadInfo(current, name, contentType == null ? "" : contentType, size);
             } finally {
                 connection.disconnect();
             }
         }
     }
 
-    private static boolean isAllowedDownload(String url, boolean nds) {
-        return nds ? DownloadPolicy.isAllowedNdsDownload(url) : DownloadPolicy.isAllowedDownload(url);
+    private static boolean isAllowedDownload(String url, GamePlatform platform) {
+        switch (platform) {
+            case GBA: return DownloadPolicy.isAllowedGbaDownload(url);
+            case DS: return DownloadPolicy.isAllowedNdsDownload(url);
+            default: return DownloadPolicy.isAllowedDownload(url);
+        }
+    }
+
+    private static boolean isAllowedRedirect(String source, String destination, GamePlatform platform) {
+        switch (platform) {
+            case GBA: return DownloadPolicy.isAllowedGbaRedirect(source, destination);
+            case DS: return DownloadPolicy.isAllowedNdsRedirect(source, destination);
+            default: return DownloadPolicy.isAllowedDownload(destination);
+        }
     }
 
     private HttpURLConnection open(String url, String method, String userAgent, String cookie,
@@ -284,11 +315,20 @@ public class CatalogClient {
     }
 
     private static String redirect(String current, String location) throws IOException {
+        return redirect(current, location, false);
+    }
+
+    private static String redirect(String current, String location, boolean strictAssetPath) throws IOException {
         if (location == null || location.isEmpty() || location.length() > 16384) {
             throw new IOException("The server returned an invalid redirect.");
         }
         try {
-            return new URI(current).resolve(new URI(location)).toString();
+            URI target = new URI(location);
+            // Validate before URI.resolve can normalize away traversal in a relative Location.
+            if (strictAssetPath && !DownloadPolicy.isSafeAssetPath(target)) {
+                throw new IOException("The server returned an invalid redirect.");
+            }
+            return new URI(current).resolve(target).toString();
         } catch (URISyntaxException | IllegalArgumentException invalidAddress) {
             throw new IOException("The server returned an invalid redirect.", invalidAddress);
         }
